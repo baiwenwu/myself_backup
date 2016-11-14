@@ -269,7 +269,7 @@ int testCopyBitsFun(uchar *src,u32 srcLen)
 		{
 			if (getOneUcharFromArr(src, src_index) != getOneUcharFromArr(cdata, cd_index))
 			{
-				printf("%d \t error!\n",i);
+				printf("%d \twrite plain code error!\n",i);
 				//exit(1);
 				break;
 			}

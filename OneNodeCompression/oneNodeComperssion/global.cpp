@@ -104,14 +104,15 @@ void randFillUcharArr(uchar *arr, u32 len)
 	for (; i < len; i++)
 	{
 		//arr[i] = rand() % 25 + 'a';
-		switch (rand() % 1)
+		switch (rand() % 5)
 		{
 		case 0:arr[i] = rand() % 255; break;
 		case 1: arr[i] = 0; break;
 		case 2: arr[i] = 1; break;
 		case 3: arr[i] = 1; break;
 		case 4: arr[i] = 0; break;
-		default: break;
+		default: arr[i] = 0;
+			break;
 		}
 	}
 	arr[len] = '\0';

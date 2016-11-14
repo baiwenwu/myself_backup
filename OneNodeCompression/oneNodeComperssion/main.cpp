@@ -12,7 +12,7 @@ int main()
 	randFillUcharArr(pfs->src, pfs->srcNum);
 	//printString(pfs->src, pfs->srcNum + 1);
 	//showGamma(pfs->src, pfs->srcNum*8);
-	testCopyBitsFun(pfs->src, pfs->srcNum * 8);
+	//testCopyBitsFun(pfs->src, pfs->srcNum * 8);
 	cout << endl;
 	return 0;
 }
