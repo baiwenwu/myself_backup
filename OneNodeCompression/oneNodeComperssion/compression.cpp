@@ -149,8 +149,8 @@ void testApend_g()
 /*
 此处考虑传指针比较好，把最后一个words记录下来，同时让Index在调用函数内部完成自动加的操作
 */
-void Append_g1(uchar*cdata, u32 *index, u32 runs, u32 *wordsL)
-{//个人觉得这个方法很好
+/*void Append_g1(uchar*cdata, u32 *index, u32 runs, u32 *wordsL)
+{
 	*index += (getBitsNum(runs) << 1) + 1;
 	u32 wordsR = *index >> 3;
 	u32 offset = *index & 0x111;
@@ -166,16 +166,21 @@ void Append_g1(uchar*cdata, u32 *index, u32 runs, u32 *wordsL)
 	cdata[wordsR] += runs & 0xff;
 	runs = runs >> 8;
 }
+*/
 void Append_g(uchar*cdata, u32 index, u32 runs)
 {//个人觉得这个方法很好
+
 	u32 zerosNum = getBitsNum(runs);
 	index += zerosNum;
 	u32 wordsL = index >> 3;
 	index += zerosNum + 1;
 	u32 wordsR = index >> 3;
-	u32 offset = index & 0x111;
+	u32 offset = index & 0x7;
 	if (!offset)
+	{
+		offset = 8;
 		wordsR--;
+	}	
 	runs = runs << (8 - offset);
 	while (wordsR > wordsL)
 	{
@@ -184,7 +189,6 @@ void Append_g(uchar*cdata, u32 index, u32 runs)
 		wordsR--;
 	}
 	cdata[wordsR] += runs & 0xff;
-	runs = runs >> 8;
 }
 void copyBits(uchar * src, u32 src_index, uchar *cdata, u32 cd_index, u32 len)
 {
@@ -230,19 +234,6 @@ void copyBits(uchar * src, u32 src_index, uchar *cdata, u32 cd_index, u32 len)
 	uchar cd_ch_t = cdata[cd_words] >> (8 - cd_offset);
 	cdata[cd_words++] = cd_ch_t << (8 - cd_offset);
 	cdata[cd_words] = 0;
-
-	/*printBitsForArray(src, src_index+256, 16);
-	cout << "\t" << int(8-src_offset);
-	cout << endl;
-	printBitsForArray(cdata, cd_index+256, 16);
-	cout << "\t" << int(cd_offset);
-	cout << endl;
-	uchar tmp_ch = getOneUcharFromArr(cdata, cd_index + len);
-	if (tmp_ch)
-	{
-		printBitsOfByte(tmp_ch);
-	}
-	cout << endl;*/
 }
 uchar getOneUcharFromArr(uchar *src,u32 index)
 {
@@ -283,7 +274,7 @@ int testCopyBitsFun(uchar *src,u32 srcLen)
 int runLengthHybirdCode(fileStream *node)
 {
 
-	if (!node->src||!node->cdNum||!node->cdata||!node->cdLen||!node->head)
+	if (!node->src||!node->srcNum)
 	{
 		cout << "params of runLengthHybirdCode is error!" << endl;
 		return -1;
@@ -309,10 +300,17 @@ int runLengthHybirdCode(fileStream *node)
 		while (bits<blockSize&&index < node->srcLen)
 		{
 			runs_t = getRuns(node->src, index);
-			bits = bits + runs_t;
+			bits += runs_t;
+			index += runs_t;
+			if (!runs_t)
+			{
+				cout << "runs error!" << endl;
+			}
 			runsArray[k] = runs_t;
+			cout << runsArray[k] << " ";
 			k++;
 		}
+		cout << endl;
 		if (bits>blockSize)
 		{//调整位一个确定长度
 			index = index - (bits - blockSize);
@@ -336,28 +334,24 @@ int runLengthHybirdCode(fileStream *node)
 			{//ALL0存储
 				node->head->writeValue(0);
 			}
-			index += blockSize;
 		}
 		else if (rl_gamma>=blockSize || index == node->srcLen)
 		{//plain
 			node->head->writeValue(2);
-
+			copyBits(node->src, index - blockSize, node->cdata, node->cdLen, blockSize);
+			node->cdLen += blockSize;
 		}
 		else
 		{//rl_gmma
 			if (firstBit)
-			{
 				node->head->writeValue(3);
-			}
 			else
-			{
 				node->head->writeValue(4);
-			}
 			for (int i = 0; i < k; i++)
 			{
-				//Append_g(node->cdata, index, runsArray[k]);
-				//index += runsArray[k];
-			}
+				Append_g(node->cdata, node->cdLen, runsArray[i]);
+				node->cdLen += (getBitsNum(runsArray[i]) << 1) + 1;
+			}	
 		}
 	}
 	return 0;
