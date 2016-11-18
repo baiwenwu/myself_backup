@@ -21,7 +21,5 @@ int main()
 	//--------------Ω‚—π≤‚ ‘-----------
 	cout << pfs->cdLen << endl;
 	//derunLengthHybirdCode(pfs);
-	CreateBitMap();
-	printBitMap();
 	return 0;
 }

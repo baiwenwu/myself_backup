@@ -149,24 +149,6 @@ void testApend_g()
 /*
 此处考虑传指针比较好，把最后一个words记录下来，同时让Index在调用函数内部完成自动加的操作
 */
-/*void Append_g1(uchar*cdata, u32 *index, u32 runs, u32 *wordsL)
-{
-	*index += (getBitsNum(runs) << 1) + 1;
-	u32 wordsR = *index >> 3;
-	u32 offset = *index & 0x111;
-	if (!offset)
-		wordsR--;
-	runs = runs << (8 - offset);
-	while (wordsR > *wordsL)
-	{
-		cdata[wordsR] += runs & 0xff;
-		runs = runs >> 8;
-		wordsR--;
-	}
-	cdata[wordsR] += runs & 0xff;
-	runs = runs >> 8;
-}
-*/
 void Append_g(uchar*cdata, u32 index, u32 runs)
 {//个人觉得这个方法很好
 

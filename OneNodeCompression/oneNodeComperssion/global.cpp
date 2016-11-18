@@ -122,3 +122,85 @@ void creatUcharArr(uchar **arr, u32 len)
 	*arr = (uchar *)malloc(len*sizeof(uchar));
 	memset(*arr, 0, len*sizeof(uchar));
 }
+
+void copyBits(uchar * src, u32 src_index, uchar *cdata, u32 cd_index, u32 len)
+{
+	u32 numBits = 0;
+	u32 src_words = src_index >> 3;
+	uchar src_offset = src_index & 0x7;
+	u32 cd_words = cd_index >> 3;
+	uchar cd_offset = cd_index & 0x7;
+	uchar offset;
+	numBits += (8 - src_offset);
+	if (src_offset >= cd_offset)//src剩余< cd 剩余
+	{
+		uchar ch_t = src[src_words] << src_offset;
+		cdata[cd_words] += (ch_t >> cd_offset);
+		offset = 8 - (src_offset - cd_offset);
+	}
+	else
+	{
+		uchar ch_t = src[src_words] << src_offset;
+		cdata[cd_words++] += (ch_t >> cd_offset);
+		offset = cd_offset - src_offset;
+		cdata[cd_words] += (ch_t << (8 - cd_offset));
+
+	}
+	if (offset == 8)
+	{
+		for (u32 i = 0; i < (len >> 3); i++)
+			cdata[++cd_words] = src[++src_words];
+		cdata[cd_words] = cdata[cd_words] >> (8 - cd_offset);
+		cdata[cd_words] = cdata[cd_words] << (8 - cd_offset);
+		return;
+	}
+	while (numBits < len)
+	{
+		uchar ch_t = src[++src_words];
+		cdata[cd_words++] += (ch_t >> offset);
+		cdata[cd_words] = (ch_t << (8 - offset));
+		numBits += 8;
+	}
+	//结尾处理(cdata数组中，多加入了[8-src_offset]位数据，需要清除)
+	cd_words = (cd_index + len) >> 3;
+	uchar cd_offset11 = (cd_index + len) & 0x7;
+	uchar cd_ch_t = cdata[cd_words] >> (8 - cd_offset);
+	cdata[cd_words++] = cd_ch_t << (8 - cd_offset);
+	cdata[cd_words] = 0;
+}
+uchar getOneUcharFromArr(uchar *src, u32 index)
+{
+	u32 words = index >> 3;
+	u32 offset = index & 0x7;
+	if (!offset)
+	{
+		return src[words];
+	}
+	uchar ch_t = src[words++] << offset;
+	ch_t += src[words] >> (8 - offset);
+	return ch_t;
+}
+int testCopyBitsFun(uchar *src, u32 srcLen)
+{
+	uchar *cdata;
+	creatUcharArr(&cdata, (srcLen >> 3) + 30);
+	while (1)
+	{
+		u32 src_index = rand() % 328;
+		u32 cd_index = rand() % 299;
+		copyBits(src, src_index, cdata, cd_index, 256);
+		for (u32 i = 0; i < 32; i++)
+		{
+			if (getOneUcharFromArr(src, src_index) != getOneUcharFromArr(cdata, cd_index))
+			{
+				printf("%d \twrite plain code error!\n", i);
+				//exit(1);
+				break;
+			}
+			src_index += 8;
+			cd_index += 8;
+		}
+		memset(cdata, 0, sizeof(uchar)*((srcLen >> 3) + 30));
+	}
+
+}

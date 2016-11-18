@@ -52,53 +52,10 @@ void CreateBitMap()
 			}
 		}
 		BitMap[i] += (R4 & 0xff);
-		BitMap[i] = (BitMap[i] << 8) + (R3 & 0xff);
-		BitMap[i] = (BitMap[i] << 8) + (R2 & 0xff);
-		BitMap[i] = (BitMap[i] << 8) + (R1 & 0xff);
+		BitMap[i] = (BitMap[i] << 8) + (R3);
+		BitMap[i] = (BitMap[i] << 8) + (R2);
+		BitMap[i] = (BitMap[i] << 8) + (R1);
 	}
-	//for (u32 i = (1ULL << 8); i<65536; i++)
-	//{
-	//	R1 = R2 = 0;
-	//	int j = 15;
-	//	u32 num0 = 0;
-	//	while (j >= 0)
-	//	{
-	//		if (i&(1ULL << j))
-	//		{
-	//			j -= num0;
-	//			if (j >= 0)
-	//			{
-	//				//if (j+num0+num0==15)
-	//				if (!R2)
-	//				{
-	//					R2 = (num0 << 1) + 1;
-	//					R1 = i >> (16 - R2);
-	//				}
-	//				R3 ++;
-	//				R4 = 16 - j;
-	//				num0 = 0;
-	//			}
-	//			else
-	//				break;
-
-	//		}
-	//		else
-	//		{
-	//			num0++;
-	//		}
-	//		j--;
-	//	}
-	//	/*cout << i;
-	//	cout << "\t" << bitset<16>(i);
-	//	cout << "   R4:" << R4;
-	//	cout << "   R3:" << R3;
-	//	cout << "   R2:" << R2;
-	//	cout << "   R1:" << R1;*/
-	//	BitMap[i] += (R1 & 0xff);
-	//	BitMap[i] = (BitMap[i] << 8) + (R2 & 0xff);
-	//	BitMap[i] = (BitMap[i] << 8) + (R3 & 0xff);
-	//	//cout << "  " << BitMap[i] << endl;
-	//}
 }
 void printBitMap()
 {

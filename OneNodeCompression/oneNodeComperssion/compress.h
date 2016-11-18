@@ -9,7 +9,5 @@ u32 getRuns(uchar *src, u32 index,uchar flag);
 //for tes
 void showGamma(uchar *src, u32 srcLen);
 //for test
-uchar getOneUcharFromArr(uchar *src, u32 index);
-int testCopyBitsFun(uchar *src, u32 srcLen);
 void Append_g(uchar*cdata, u32 index, u32 runs);
 int runLengthHybirdCode(fileStream *node);

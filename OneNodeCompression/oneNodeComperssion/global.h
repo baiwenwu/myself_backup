@@ -21,3 +21,7 @@ void randFillUcharArr
 	(uchar *arr, u32 len);
 void creatUcharArr
 	(uchar **arr, u32 len);
+int testCopyBitsFun(uchar *src, u32 srcLen);
+uchar getOneUcharFromArr(uchar *src, u32 index);
+void copyBits(uchar * src, u32 src_index, uchar *cdata,
+	                 u32 cd_index, u32 len);
