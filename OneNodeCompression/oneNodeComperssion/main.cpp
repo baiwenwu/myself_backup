@@ -20,7 +20,8 @@ int main()
 	cout << endl;
 	//--------------½âÑ¹²âÊÔ-----------
 	cout << pfs->cdLen << endl;
-	derunLengthHybirdCode(pfs);
-
+	//derunLengthHybirdCode(pfs);
+	CreateBitMap();
+	printBitMap();
 	return 0;
 }
