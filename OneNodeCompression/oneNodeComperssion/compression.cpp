@@ -79,8 +79,8 @@ uchar bits[256] = {
 uchar getFirstBit(uchar *src, u32 index)
 {
 	u32 words = index >> 3;
-	u32 offset = (index & 7);
-	return src[words] & (128>offset);
+	u32 offset = index & 0x7;
+	return (src[words] & (128 >> offset));
 }
 u32 getRuns(uchar *src, u32 index)
 {// 1 bug occur when offset equals 0
@@ -172,87 +172,7 @@ void Append_g(uchar*cdata, u32 index, u32 runs)
 	}
 	cdata[wordsR] += runs & 0xff;
 }
-void copyBits(uchar * src, u32 src_index, uchar *cdata, u32 cd_index, u32 len)
-{
-	u32 numBits = 0;
-	u32 src_words = src_index >> 3;
-	uchar src_offset = src_index & 0x7;
-	u32 cd_words = cd_index >> 3;
-	uchar cd_offset = cd_index & 0x7;
-	uchar offset;
-	numBits += (8 - src_offset);
-	if (src_offset >= cd_offset)//src剩余< cd 剩余
-	{
-		uchar ch_t = src[src_words] << src_offset;
-		cdata[cd_words] += (ch_t >> cd_offset);
-		offset = 8-(src_offset - cd_offset);
-	}
-	else
-	{
-		uchar ch_t = src[src_words] << src_offset;
-		cdata[cd_words++] += (ch_t >> cd_offset);
-		offset = cd_offset - src_offset;
-		cdata[cd_words] += (ch_t << (8-cd_offset));
-		
-	}
-	if (offset == 8)
-	{
-		for (u32 i = 0; i < (len >> 3); i++)
-			cdata[++cd_words] = src[++src_words];
-		cdata[cd_words] = cdata[cd_words] >> (8 - cd_offset);
-		cdata[cd_words] = cdata[cd_words] << (8 - cd_offset);
-		return;
-	}
-	while (numBits < len)
-	{
-		uchar ch_t = src[++src_words];
-		cdata[cd_words++] += (ch_t >> offset);
-		cdata[cd_words] = (ch_t << (8 - offset));
-		numBits += 8;
-	}
-	//结尾处理(cdata数组中，多加入了[8-src_offset]位数据，需要清除)
-	cd_words = (cd_index + len) >> 3;
-	uchar cd_offset11 = (cd_index + len) & 0x7;
-	uchar cd_ch_t = cdata[cd_words] >> (8 - cd_offset);
-	cdata[cd_words++] = cd_ch_t << (8 - cd_offset);
-	cdata[cd_words] = 0;
-}
-uchar getOneUcharFromArr(uchar *src,u32 index)
-{
-	u32 words = index >> 3;
-	u32 offset = index & 0x7;
-	if (!offset)
-	{
-		return src[words];
-	}
-	uchar ch_t = src[words++] << offset;
-	ch_t += src[words] >> (8 - offset);
-	return ch_t;
-}
-int testCopyBitsFun(uchar *src,u32 srcLen)
-{
-	uchar *cdata;
-	creatUcharArr(&cdata, (srcLen>>3) + 30);
-	while (1)
-	{
-		u32 src_index = rand() % 328;
-		u32 cd_index = rand() % 299;
-		copyBits(src, src_index, cdata, cd_index, 256);
-		for (u32 i = 0; i < 32; i++)
-		{
-			if (getOneUcharFromArr(src, src_index) != getOneUcharFromArr(cdata, cd_index))
-			{
-				printf("%d \twrite plain code error!\n",i);
-				//exit(1);
-				break;
-			}
-			src_index += 8;
-			cd_index += 8;
-		}
-		memset(cdata, 0, sizeof(uchar)*((srcLen >> 3) + 30));		
-	}
-	
-}
+
 int runLengthHybirdCode(fileStream *node)
 {
 
@@ -272,6 +192,8 @@ int runLengthHybirdCode(fileStream *node)
 	u32 *runsArray = (u32*)malloc(sizeof(u32)*blockSize);
 	while (index<node->srcLen)
 	{
+		
+
 		u32 rl_gamma = 0;
 		if (index == node->srcLen)
 			break;
@@ -289,7 +211,7 @@ int runLengthHybirdCode(fileStream *node)
 				cout << "runs error!" << endl;
 			}
 			runsArray[k] = runs_t;
-			cout << runsArray[k] << " ";
+			
 			k++;
 		}
 		cout << endl;
@@ -325,14 +247,19 @@ int runLengthHybirdCode(fileStream *node)
 		}
 		else
 		{//rl_gmma
+			//--------kkzone-bug-----
+			printString(node->src, index-256, 32);
+			cout << endl;
+			//--------kkzone-bug-----
 			if (firstBit)
 				node->head->writeValue(3);
 			else
 				node->head->writeValue(4);
 			for (int i = 0; i < k; i++)
 			{
+				cout << runsArray[i] << " ";
 				Append_g(node->cdata, node->cdLen, runsArray[i]);
-				node->cdLen += (getBitsNum(runsArray[i]) << 1) + 1;
+				node->cdLen += (getBitsNum(runsArray[i]) << 1) + 1;	
 			}	
 		}
 	}

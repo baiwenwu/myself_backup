@@ -79,17 +79,24 @@ void printBitsForArray(uchar * src, u32 index, u32 len)
 	}
 }
 // for test
-int printString(uchar *str, int num)
+int printString(uchar *str, u32 sIndex, int num)
 {
 	if (!str || !num)
 	{
 		return -1;
 	}
-	int i = 0;
+	int x = sIndex >> 3;
+	int i = x;
+	u32 endlNum = 0;
 	//while (str[i] != '\0' && i < num)
-	while (i < num)
+	while (i < num+x)
 	{
+		endlNum++;
 		printBitsOfByte(str[i++]);
+		if (!(endlNum & 0x7))
+			cout << endl;
+		else
+			cout << " ";
 	}
 }
 void randFillUcharArr(uchar *arr, u32 len)

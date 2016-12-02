@@ -2,6 +2,9 @@
 #include"bitArray.h"
 #include"global.h"
 #include"bitMap.h"
-void derunLengthHybirdCode(fileStream *node);
 
+void CreateBitMap();
+void printBitMap();
+void derunLengthHybirdCode(fileStream *node);
+u32 testDecompressionStr(uchar * src, u32 blsize, u32 srcIndex, uchar * des);
 

@@ -14,7 +14,7 @@ struct fileStream{
 static u32  blockSize=256;
 
 void printBitsOfByte(uchar ch);
-int printString(uchar *str, int num);
+int printString(uchar *str, u32 sIndex,int num);
 void printBitsForArray
 	(uchar * src, u32 index, u32 len);
 void randFillUcharArr

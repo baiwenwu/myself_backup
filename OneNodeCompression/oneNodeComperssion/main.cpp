@@ -6,9 +6,10 @@
 
 int main()
 {
+	CreateBitMap();
 	fileStream fs;
 	fileStream *pfs = &fs;
-	pfs->srcNum = 1000;
+	pfs->srcNum = 100;
 	creatUcharArr(&pfs->src, pfs->srcNum + 1);
 	randFillUcharArr(pfs->src, pfs->srcNum);
 	/*printString(pfs->src, pfs->srcNum + 1);
@@ -19,7 +20,6 @@ int main()
 	runLengthHybirdCode(pfs);
 	cout << endl;
 	//--------------½âÑ¹²âÊÔ-----------
-	cout << pfs->cdLen << endl;
-	//derunLengthHybirdCode(pfs);
+	derunLengthHybirdCode(pfs);
 	return 0;
 }
