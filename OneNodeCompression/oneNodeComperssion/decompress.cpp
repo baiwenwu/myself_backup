@@ -130,13 +130,30 @@ void writeDeGammaCode(uchar* src,u32 index,u32 num1)
 		{
 			src[ewords--] = 0xff;
 		}
-		src[swords] = 0xff>>soffset;
+		src[swords] += 0xff>>soffset;//bug 2 is here, and have been verified it
 	}
 	else
 	{
 		uchar ch_t = 0xff << (8 - num1);
 		src[swords] += ch_t >> soffset;
 	}
+}
+void printBug1(uchar*str,u32 index,u32 len)
+{
+	u32 offset = index & 0x7;
+	u32 num = ((len + offset) >> 3) + 1;
+	u32 words = index >> 3;
+	for (u32 i = words; i < words + num; i++)
+	{
+		if (i == 174)
+		{
+			cout << i << " ";
+			int xxxxxxxxxx = 0;
+		}
+		printBitsOfByte(str[i]);
+		cout << " ";
+	}	
+	cout << endl;
 }
 u32 decodeGamma(uchar *src,u32 src_index,uchar *des,u32 des_index,bool flag )
 {
@@ -153,9 +170,11 @@ u32 decodeGamma(uchar *src,u32 src_index,uchar *des,u32 des_index,bool flag )
 			R3 = (BitMap[val] >> 16) & 0xff;
 			R4 = (BitMap[val] >> 24) & 0xff;
 			R3--;
-			cout << R1 << " ";
+			//cout << R1 << " ";
 			if (flag)
 				writeDeGammaCode(des, des_index, R1);
+			//printBug1(des, des_index, R1);
+			
 			flag = !flag;
 			des_index += R1;
 			src_index += R2;
@@ -166,10 +185,11 @@ u32 decodeGamma(uchar *src,u32 src_index,uchar *des,u32 des_index,bool flag )
 				val = (val << R2) & 0xffff;//bug is here 1 移位后数据超出了界限[已经修改]
 				//printBitMap_i(val);
 				R1 = BitMap[val] & 0xff;
-				cout << R1 << " ";
+				//cout << R1 << " ";
 				R2 = (BitMap[val] >> 8) & 0xff;
 				if (flag)
 					writeDeGammaCode(des, des_index, R1);
+				//printBug1(des, des_index, R1);
 				flag = !flag;
 				des_index += R1;
 				src_index += R2;
@@ -187,10 +207,13 @@ void derunLengthHybirdCode(fileStream *node)
 	uchar *tmp_src;
 	u32 tmp_srcLen = 0;
 	u32 decLen = 0;
+	u32 errs;
 	creatUcharArr(&tmp_src, node->srcNum+36);
 	u32 i = 0;
+	int block_i = 0;
 	while (tmp_srcLen < node->srcLen)
 	{
+		//cout << "block_i=" << block_i++ << endl;
 		switch (node->head->getValue_i(i++))
 		{
 		case 0:
@@ -203,13 +226,29 @@ void derunLengthHybirdCode(fileStream *node)
 			decLen += blockSize;break;
 		case 3:
 			decLen = decodeGamma(node->cdata, decLen, tmp_src, tmp_srcLen, 1);
-			if (testDecompressionStr(node->src, blockSize, tmp_srcLen, tmp_src))
+			 errs= testDecompressionStr(node->src, blockSize, tmp_srcLen, tmp_src);
+			if (errs)
+			{
+				cout << "错误个数：" << errs << endl;
+				cout << "源串：" << endl;
+				printString(node->src, tmp_srcLen, 32);
+				cout << "解压：" << endl;
+				printString(tmp_src, tmp_srcLen, 32);
 				exit(0);
+			}			
 			break;
 		case 4:
 			decLen = decodeGamma(node->cdata, decLen, tmp_src, tmp_srcLen, 0);
-			if (testDecompressionStr(node->src, blockSize, tmp_srcLen, tmp_src))
+			errs = testDecompressionStr(node->src, blockSize, tmp_srcLen, tmp_src);
+			if (errs)
+			{
+				cout << "错误个数：" << errs << endl;
+				cout << "源串：" << endl;
+				printString(node->src, tmp_srcLen, 32);
+				cout << "解压：" << endl;
+				printString(tmp_src, tmp_srcLen, 32);
 				exit(0);
+			}
 			break;
 		default:
 			break;
@@ -218,10 +257,13 @@ void derunLengthHybirdCode(fileStream *node)
 	}
 	testDecompressionStr(node->src, node->srcNum, 0, tmp_src);
 }
+
+
+
 u32 testDecompressionStr(uchar * src, u32 blsize, u32 srcIndex, uchar * des)
 {
 	cout << endl;
-	printString(des, srcIndex, 32);
+	//printString(des, srcIndex, 32);
 	u32 erorrNum = 0;
 	u32 srcWords = srcIndex >> 3;
 	u32 srcNum = srcWords + (blsize >> 3);

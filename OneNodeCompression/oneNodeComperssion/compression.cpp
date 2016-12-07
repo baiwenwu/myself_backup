@@ -239,7 +239,7 @@ int runLengthHybirdCode(fileStream *node)
 				node->head->writeValue(0);
 			}
 		}
-		else if (rl_gamma>=blockSize || index == node->srcLen)
+		else if (rl_gamma>=blockSize || index >= node->srcLen)
 		{//plain
 			node->head->writeValue(2);
 			copyBits(node->src, index - blockSize, node->cdata, node->cdLen, blockSize);
@@ -248,8 +248,8 @@ int runLengthHybirdCode(fileStream *node)
 		else
 		{//rl_gmma
 			//--------kkzone-bug-----
-			printString(node->src, index-256, 32);
-			cout << endl;
+			//printString(node->src, index-256, 32);
+			//cout << endl;
 			//--------kkzone-bug-----
 			if (firstBit)
 				node->head->writeValue(3);
@@ -257,7 +257,7 @@ int runLengthHybirdCode(fileStream *node)
 				node->head->writeValue(4);
 			for (int i = 0; i < k; i++)
 			{
-				cout << runsArray[i] << " ";
+				//cout << runsArray[i] << " ";
 				Append_g(node->cdata, node->cdLen, runsArray[i]);
 				node->cdLen += (getBitsNum(runsArray[i]) << 1) + 1;	
 			}	

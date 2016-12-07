@@ -9,7 +9,7 @@ int main()
 	CreateBitMap();
 	fileStream fs;
 	fileStream *pfs = &fs;
-	pfs->srcNum = 100;
+	pfs->srcNum = 10000;
 	creatUcharArr(&pfs->src, pfs->srcNum + 1);
 	randFillUcharArr(pfs->src, pfs->srcNum);
 	/*printString(pfs->src, pfs->srcNum + 1);
