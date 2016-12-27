@@ -258,8 +258,6 @@ void derunLengthHybirdCode(fileStream *node)
 	testDecompressionStr(node->src, node->srcNum, 0, tmp_src);
 }
 
-
-
 u32 testDecompressionStr(uchar * src, u32 blsize, u32 srcIndex, uchar * des)
 {
 	cout << endl;

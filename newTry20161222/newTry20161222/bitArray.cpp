@@ -1,5 +1,6 @@
 #include "bitArray.h"
-
+#include<time.h>
+u32 blockSize = 256;
 bitArray::bitArray(u32 bitsLen, uchar bits)
 {
 	arr = NULL;

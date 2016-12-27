@@ -175,7 +175,6 @@ void Append_g(uchar*cdata, u32 index, u32 runs)
 
 int runLengthHybirdCode(fileStream *node)
 {
-
 	if (!node->src||!node->srcNum)
 	{
 		cout << "params of runLengthHybirdCode is error!" << endl;
@@ -195,8 +194,10 @@ int runLengthHybirdCode(fileStream *node)
 		
 
 		u32 rl_gamma = 0;
-		if (index == node->srcLen)
+		if ((node->srcLen) < index)
+		{
 			break;
+		}
 		u32 bits = 0;
 		firstBit = getFirstBit(node->src, index);
 		memset(runsArray, 0, blockSize*sizeof(u32));
@@ -214,7 +215,7 @@ int runLengthHybirdCode(fileStream *node)
 			
 			k++;
 		}
-		cout << endl;
+		//cout << endl;
 		if (bits>blockSize)
 		{//调整位一个确定长度
 			index = index - (bits - blockSize);

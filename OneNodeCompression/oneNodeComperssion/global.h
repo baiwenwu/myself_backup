@@ -11,7 +11,7 @@ struct fileStream{
 	u32 cdNum;
 	fileStream();
 };
-static u32  blockSize=256;
+static u32  blockSize=512;
 
 void printBitsOfByte(uchar ch);
 int printString(uchar *str, u32 sIndex,int num);
@@ -25,3 +25,10 @@ int testCopyBitsFun(uchar *src, u32 srcLen);
 uchar getOneUcharFromArr(uchar *src, u32 index);
 void copyBits(uchar * src, u32 src_index, uchar *cdata,
 	                 u32 cd_index, u32 len);
+
+
+//-----------文件操作相关函数-----------
+int writeToFile(fileStream *s);
+int readFromFile(fileStream *s);
+bool isEqual(fileStream *x, fileStream *y);
+int writeSrcFile(uchar *str, u32 len);

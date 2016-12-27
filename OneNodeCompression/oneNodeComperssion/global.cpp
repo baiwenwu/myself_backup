@@ -1,4 +1,6 @@
+#include<fstream>
 #include "global.h"
+
 fileStream::fileStream()
 {
 	src = NULL;
@@ -111,13 +113,14 @@ void randFillUcharArr(uchar *arr, u32 len)
 	for (; i < len; i++)
 	{
 		//arr[i] = rand() % 25 + 'a';
-		switch (rand() % 5)
+		switch (rand() % 7)
 		{
 		case 0:arr[i] = rand() % 255; break;
-		case 1: arr[i] = 0; break;
-		case 2: arr[i] = 1; break;
-		case 3: arr[i] = 1; break;
-		case 4: arr[i] = 0; break;
+		case 1: arr[i] = 'A'; break;
+		case 2: arr[i] = 'C'; break;
+		case 3: arr[i] = 'G'; break;
+		case 4: arr[i] = 'T'; break;
+		//case 5: arr[i] = 'A'; break;
 		default: arr[i] = 0;
 			break;
 		}
@@ -210,4 +213,92 @@ int testCopyBitsFun(uchar *src, u32 srcLen)
 		memset(cdata, 0, sizeof(uchar)*((srcLen >> 3) + 30));
 	}
 
+}
+
+
+
+int writeToFile(fileStream *s)
+{
+	if (!s)
+	{
+		cout << "the parameter is error!" << endl;
+		return -1;
+	}
+	//定义文件输出流   文件不存在时创建文件  
+	//ofstream outFile("xb1.dat", ios::out | ios::binary);  
+	ofstream outFile("xb1.txt", ios::out);
+	//对文件打开错误时的操作  
+	if (!outFile)
+	{
+		cout << "The file open error!" << endl;
+		return -2;
+	}
+	cout << "fileStream=" << sizeof(fileStream) << endl;
+	outFile.write((char*)s, sizeof(fileStream));
+	cout << "struct_head=" << sizeof(bitArray) << endl;
+	outFile.write((char*)s->head, sizeof(bitArray));
+	cout << "head=" << sizeof(uchar)*s->head->arrLen << endl;
+	outFile.write((char*)s->head->arr, sizeof(uchar)*s->head->arrLen);
+	cout << "cdata=" << sizeof(uchar)*s->cdNum << endl;
+	outFile.write((char*)s->cdata, sizeof(uchar)*s->cdNum);
+	//char *test = "wo ai baiwenwu!";
+	//outFile.write((char*)test, sizeof(uchar)*strlen(test));
+	//outFile.write((char*)test, sizeof(uchar)*strlen(test));
+	outFile.close();
+	return 0;
+}
+int readFromFile(fileStream *s)
+{
+	if (!s)
+	{
+		cout << "The file open error!" << endl;
+		return -2;
+	}
+	//文件输入流  将文件中的student信息读出到屏幕上  
+	//ifstream inFile("xb1.dat", ios::in | ios::binary);
+	ifstream inFile("xb1.txt", ios::out);
+	if (!inFile)
+	{
+		cout << "The inFile open error!" << endl;
+		return -1;
+	}
+	inFile.read((char*)s, sizeof(fileStream));
+	s->head = new bitArray(0,2);
+	inFile.read((char*)s->head, sizeof(bitArray));
+	s->head->arr = new uchar[s->head->arrLen];
+	inFile.read((char*)s->head->arr, sizeof(uchar)*s->head->arrLen);
+	s->cdata = new uchar[s->cdNum];
+	inFile.read((char*)s->cdata, sizeof(uchar)*s->cdNum);
+
+	inFile.close();
+	return 0;
+}
+bool isEqual(fileStream *x, fileStream *y)
+{
+	if ( x->cdLen != y->cdLen || x->cdNum != y->cdNum
+	 || x->src != y->src || x->srcLen != y->srcLen || x->srcNum != y->srcNum)
+	{
+		return false;
+	}
+	bitArray *headx = x->head;
+	bitArray *heady = y->head;
+	return true;
+}
+int writeSrcFile(uchar *str, u32 len)
+{
+	if (!str)
+	{
+		cout << "The file open error!" << endl;
+		return -2;
+	}
+	ofstream outFile("srcStr.txt", ios::out);  //定义文件输出流   文件不存在时创建文件  
+	//对文件打开错误时的操作  
+	if (!outFile)
+	{
+		cout << "The file open error!" << endl;
+		return -2;
+	}
+	outFile.write((char*)str, sizeof(uchar)*len);
+	outFile.close();
+	return 0;
 }
