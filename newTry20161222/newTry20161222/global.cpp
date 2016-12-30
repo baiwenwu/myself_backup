@@ -54,9 +54,66 @@ char *strcpy1(char *dst, const char *src)
 	while ((*dst++ = *src++) != '\0');
 	return ret;
 }
+int getParameters()
+{
+	blockSiz = 9;//b
+	if (blockSiz <= 0 ||
+		blockSiz>9
+		){
+		printf("blockSize should within [1-9]\n");
+		return ERR_PARAMETER;
+	}
+	treeType = 1;//e
+	if (treeType <= 0 ||
+		treeType > 3
+		){
+		printf("treetype should within [1-3]\n");
+		return ERR_PARAMETER;
+	}
+	nodeCode = 1;//g
+	if (nodeCode <= 0 ||
+		nodeCode>2
+		){
+		printf("nodeCode should within [1-2]\n");
+		return ERR_PARAMETER;
+	}
+	verbose = 1;//v
+	if (verbose<0 ||
+		verbose>2
+		){
 
-int threadBlkInit(Stream_t *streamPtr, int index){
+		printf("verbose should witin [0-2]\n");
+		return ERR_PARAMETER;
+	}
+	keepOrigFile = 1;//k
+	overWrite = 1;//f
+	//d
+	if (workState == -1){
+		workState = 0;
+	}
+	else if (workState == 0){
+		printf("more than two option -c \n");
+		return ERR_PARAMETER;
+	}
+	else{
+		printf("can't have both option -d and option -c \n");
+		return ERR_PARAMETER;
+	}
+	nthread = 1;//p
+	if (nthread <= 0 ||
+		nthread>4
+		){
+		printf("nthread should with [1-4]\n");
+		return ERR_PARAMETER;
+	}
+		
+	strcpy_s(fileInfo.orgfileName, FILE_NAME_LEN,"management-server.log");
+	return 0;
+}
+
+int threadBlkInit(Str_rt *str_r, int index){
 	int ret;
+	Stream_t *streamPtr = &str_r->str_s;
 	streamPtr->workState = workState ? DECPRESS : COMPRESS;
 	streamPtr->blkSiz100k = blockSiz;
 	streamPtr->treeShape = shapeMap(treeType);
@@ -66,17 +123,17 @@ int threadBlkInit(Stream_t *streamPtr, int index){
 	//sprintf(streamPtr->oufileName, "%s.%d", fileInfo.zipFileName, index);
 	sprintf_s(streamPtr->oufileName, "%s.%d", fileInfo.zipFileName, index);
 
+	streamPtr->infd.open(streamPtr->infileName);//以只读方式打开文件  O_RDONLY
+	if (!streamPtr->infd.is_open()){
+		printf("open error\n");
+		exit(0);
+	}
+	streamPtr->oufd.open(streamPtr->oufileName, ios::out);//最后一个参数是指定权限
+	if (!streamPtr->oufd.is_open()){
+		printf("open error\n");
+		exit(0);
+	}
 
-	streamPtr->infd.open(streamPtr->infileName, O_RDONLY);//以只读方式打开文件
-	if (streamPtr->infd){
-		printf("open error\n");
-		exit(0);
-	}
-	streamPtr->oufd.open(streamPtr->oufileName, O_WRONLY | O_CREAT, 0777);//最后一个参数是指定权限
-	if (streamPtr->oufd){
-		printf("open error\n");
-		exit(0);
-	}
 	streamPtr->curBlkSeq = 0;
 	streamPtr->blkOrigSiz = 0;
 	streamPtr->blkAfterSiz = 0;
@@ -85,28 +142,28 @@ int threadBlkInit(Stream_t *streamPtr, int index){
 	streamPtr->myFree = free;
 
 	streamPtr->inbuff = (uchar*)streamPtr->myAlloc(streamPtr->blkSiz100k\
-		* 100000 + sizeof(uchar) + OVERSHOOT
+		* BLOCKTIMES + sizeof(uchar) + OVERSHOOT
 		);//OVERSHOOT=1000 wzip.h define定义
 	if (streamPtr->inbuff == NULL){
 		return ERR_MEMORY;
 	}
 
 	streamPtr->outbuff = (uchar*)streamPtr->myAlloc(streamPtr->blkSiz100k\
-		* 100000 * 2
+		* BLOCKTIMES * 2
 		);
 	if (streamPtr->outbuff == NULL){
 		return ERR_MEMORY;
 	}
 	//创建后缀数组,
 	streamPtr->suffixArray = (u32*)streamPtr->myAlloc(streamPtr->blkSiz100k\
-		* 100000 * sizeof(u32) + sizeof(u32)
+		* BLOCKTIMES * sizeof(u32) + sizeof(u32)
 		);
 	if (streamPtr->suffixArray == NULL){
 		return ERR_MEMORY;
 	}
 
 	streamPtr->bwt = (uchar *)streamPtr->myAlloc(streamPtr->blkSiz100k\
-		* 100000 + sizeof(uchar)
+		* BLOCKTIMES + sizeof(uchar)
 		);
 	if (streamPtr->bwt == NULL)
 	{
@@ -124,7 +181,7 @@ int threadBlkInit(Stream_t *streamPtr, int index){
 	streamPtr->totalOuHig32 = 0;
 	streamPtr->totalOuLow32 = 0;
 	//小波数的根结点
-	streamPtr->root = NULL;
+	str_r->root = NULL;
 
 	//累积cpu时间
 	streamPtr->accCpuTime = 0;
@@ -139,85 +196,87 @@ int threadBlkInit(Stream_t *streamPtr, int index){
 		printf("tllg error\n");
 		exit(0);
 	}
+
 	return 0;
 }
-int treeCode(Stream_t *streamPtr)
+int treeCode(Str_rt *str_r)
 {
+	Stream_t *streamPtr = &str_r->str_s;
 	int ret = 0;
 	uchar *inbuff = streamPtr->bwt;
 	u32 len = streamPtr->blkOrigSiz;
 	TreeType shape = streamPtr->treeShape;
+	shape = HU_TACKER;
 	if (!inbuff || !len || !streamPtr)
 	{
 		return ERR_PARAMETER;
 	}
-	//switch (shape)
-	//{
+	switch (shape)
+	{
 
-	//case HUFFMAN:
-	//	huffmanTree hufTree;
-	//	//hufTree = createHuffTree(inbuff, len, streamPtr);
-	//	if (!hufTree)
-	//	{
-	//		errProcess("createHuffTree", ERR_MEMORY);
-	//		return -1;
-	//	}
-	//	//ret = generateHuffCode(hufTree, streamPtr->codeTable);
-	//	if (ret<0)
-	//	{
-	//		errProcess("generateHuffCode", ret);
-	//		//destroyHuffTree(hufTree);
-	//		return ret;
-	//	}
-	//	//destroyHuffTree(hufTree);
-	//	return 0;
-	//	break;
-	//case BALANCE:
-	//	balanceTree balTree;
-	//	//balTree = createBalanceTree(inbuff, len, streamPtr);
-	//	if (!balTree)
-	//	{
-	//		errProcess("createBalanceTree", ERR_MEMORY);
-	//		return -1;
-	//	}
-	//	//ret = generateBalCode(balTree, streamPtr->codeTable);
-	//	if (ret<0)
-	//	{
-	//		errProcess("generateBalCode", ret);
-	//		//destroyBalTree(balTree);
-	//		return -1;
-	//	}
+	case HUFFMAN:
+		huffmanTree hufTree;
+		hufTree = createHuffTree(inbuff, len, streamPtr);
+		if (!hufTree)
+		{
+			errProcess("createHuffTree", ERR_MEMORY);
+			return -1;
+		}
+		ret = generateHuffCode(hufTree, streamPtr->codeTable);
+		if (ret<0)
+		{
+			errProcess("generateHuffCode", ret);
+			destroyHuffTree(hufTree);
+			return ret;
+		}
+		destroyHuffTree(hufTree);
+		return 0;
+		break;
+	case BALANCE:
+		balanceTree balTree;
+		balTree = createBalanceTree(inbuff, len, streamPtr);
+		if (!balTree)
+		{
+			errProcess("createBalanceTree", ERR_MEMORY);
+			return -1;
+		}
+		ret = generateBalCode(balTree, streamPtr->codeTable);
+		if (ret<0)
+		{
+			errProcess("generateBalCode", ret);
+			destroyBalTree(balTree);
+			return -1;
+		}
 
-	//	//destroyBalTree(balTree);
-	//	return 0;
-	//	break;
-	//case HU_TACKER:
-	//	hutackerTree hutTree;
-	//	//hutTree = createHutackerTree(inbuff, len, streamPtr);
-	//	if (!hutTree)
-	//	{
-	//		errProcess("createHutackerTree", ERR_MEMORY);
-	//		return -1;
-	//	}
+		destroyBalTree(balTree);
+		return 0;
+		break;
+	case HU_TACKER:
+		hutackerTree hutTree;
+		hutTree = createHutackerTree(inbuff, len, streamPtr);
+		if (!hutTree)
+		{
+			errProcess("createHutackerTree", ERR_MEMORY);
+			return -1;
+		}
 
-	//	//ret = generateHutackerCode(hutTree, streamPtr->codeTable);
-	//	if (ret<0)
-	//	{
-	//		errProcess("generateHutackerCode", ret);
-	//		//destroyHutackerTree(hutTree);
-	//		return ret;
-	//	}
-	//	//destroyHutackerTree(hutTree);
-	//	return 0;
-	//	break;
+		ret = generateHutackerCode(hutTree, streamPtr->codeTable);
+		if (ret<0)
+		{
+			errProcess("generateHutackerCode", ret);
+			destroyHutackerTree(hutTree);
+			return ret;
+		}
+		destroyHutackerTree(hutTree);
+		return 0;
+		break;
 
-	//}
-
-
+	}
 	return 0;
 
 }
-int streamBlkCompressCleanUp(Stream_t *streamPtr){
+int streamBlkCompressCleanUp(Str_rt *str_r){
+	Stream_t *streamPtr = &str_r->str_s;
 	if (streamPtr == NULL)
 	{
 		return ERR_PARAMETER;
@@ -249,10 +308,10 @@ int streamBlkCompressCleanUp(Stream_t *streamPtr){
 		streamPtr->bwt = NULL;
 	}
 
-	if (streamPtr->root)
+	if (str_r->root)
 	{
 		//destroy wavelet tree
-		streamPtr->root = NULL;
+		str_r->root = NULL;
 	}
 
 	return 0;
@@ -260,93 +319,94 @@ int streamBlkCompressCleanUp(Stream_t *streamPtr){
 
 /*    压缩程序入口*/
 void *childThread(int i){
-	int ret;
-
-	Stream_t stream;
-	ret = threadBlkInit(&stream, 0);//log201612261126
+	int ret = 0;
+	Str_rt str_r;
+	Stream_t &stream = str_r.str_s; //log201612282342
+	ret = threadBlkInit(&str_r, 1);//log201612261126
 	if (ret<0){
-		printf("threadBlkInit\n");
+		cout <<"threadBlkInit\n" << endl;
 		exit(0);
 	}
 
 	u32 nread;
 	int blkCount = 0;
 	// 求SA数组和BWT变换后的L串
-	while (blkCount<threadInfos[0].nblocks)
+	while (blkCount < threadInfos[1].nblocks)
 	{
 		blkCount++;//important
 		nread = stream.blkSiz100k * BLOCKTIMES;
 		//printf("每次压缩处理文件的大小:%d\n",nread);
 		stream.infd.read((char*)stream.inbuff, nread);
+		nread=stream.infd.gcount();
 		//ret = read(stream.infd, stream.inbuff, nread);
-		if (ret<0){
-			printf("read error\n");
+		if (ret < 0){
+			cout << "read error\n" << endl;
 			exit(0);
 		}
-		nread = ret;
+		//nread = ret;
 
-
+	
 		stream.blkOrigSiz = nread + 1;
 		stream.inbuff[stream.blkOrigSiz - 1] = '\0';
-		if (stream.blkOrigSiz == 1)
+		if (stream.blkOrigSiz == 0)
 		{
 			//eof
 			break;
 		}
+#if 1
+		u32 readCount = stream.infd.gcount();
+		cout << "-----" << blkCount << "-----" << endl;
+		cout << "\tgcount=\t" << readCount << endl;
+		cout << "\tnread=\t" << nread << endl;
+		cout << "\tlen=\t" << strlen((char*)stream.inbuff) << endl;
+#endif
 
 		//while computing the suffix array,the lib may use global varbile
-		//求得SA数组stream.suffixArray
 		ret = divsufsort(stream.inbuff, (int *)stream.suffixArray, stream.blkOrigSiz);
-		//ret = blockSort(stream.inbuff,stream.suffixArray,stream.blkOrigSiz,	&(stream.bwtIndex));
-		if (ret<0)
+		if (ret < 0)
 		{
 			errProcess("blockSort", ret);
 			exit(0);
 		}
-		//获得BWT变换的后的L串即stream.bwt
 		int bwtIndex;
 		ret = bw_transform(stream.inbuff, stream.bwt, (int *)stream.suffixArray,
 			stream.blkOrigSiz, &bwtIndex);
 		//ret = getBwtTransform(stream.inbuff, stream.suffixArray,stream.bwt, stream.blkOrigSiz);
-		if (ret<0)
+		if (ret < 0)
 		{
 			errProcess("getBwtTransform", ret);
 			exit(0);
 		}
-		//获得取字符的编码,根据树形进行不同的编码
-		//ret=treeCode(stream.bwt,stream.blkOrigSiz,stream.treeShape,&stream);
-		ret = treeCode(&stream);
+
+		ret = treeCode(&str_r);
 		if (ret<0)
 		{
 			errProcess("treeCode", ret);
 			exit(0);
 		}
-		waveletTree root = NULL;
-		//waveletTree root = createWaveletTree(stream.bwt,stream.blkOrigSiz,stream.codeTable);
 
-		if (!root)
+		str_r.root = createWaveletTree(stream.bwt, stream.blkOrigSiz, stream.codeTable);
+		if (!str_r.root)
 		{
 			errProcess("createWaveletTree", ERR_MEMORY);
 			exit(0);
 		}
 
-		stream.root = root;//set the element of stream
-
 		//compress bits-vector of wavelet tree
-		//ret=compressWaveletTree(stream.root,stream.nodeCode);
-		//ret = compressWaveletTree_bww1(&stream);
+		ret = compressWaveletTree(str_r.root,stream);
 		if (ret<0)
 		{
 			errProcess("compressWaveletTree", ret);
 			exit(0);
 		}
-		int zipLen = 0;
-		//int zipLen = computeZipSizWaveletTree(stream.root);
-		/*if (zipLen<0)
+
+		int zipLen = computeZipSizWaveletTree(str_r.root);
+		if (zipLen<0)
 		{
 			errProcess("computeZipSizWaveletTree", zipLen);
 			exit(0);
-		}*/
+		}
+
 		if (stream.nodeCode == HBRID)
 		{//log201612261440
 			uchar block_t = (stream.HBblockSize >> 8) & 0xff;
@@ -374,7 +434,7 @@ void *childThread(int i){
 		}
 
 		//ret = writeBlkZipNodeWithPreorder(&stream);
-		ret = writeBlkZipNodeWithPreorder(stream.oufd, stream.root);
+		ret = writeBlkZipNodeWithPreorder(stream.oufd, str_r.root);
 		if (ret<0)
 		{
 			errProcess("writeBlkZipNodeWithPreorder", ret);
@@ -401,19 +461,18 @@ void *childThread(int i){
 			errProcess("destroyWaveletTree", ret);
 			exit(0);
 		}
-		stream.root = NULL;
-
+		str_r.root = NULL;
 	}
-
-	ret = streamBlkCompressCleanUp(&stream);
+	ret = streamBlkCompressCleanUp(&str_r);
 	if (ret<0)
 	{
 		errProcess("streamBlkCleanUp", ret);
 		exit(0);
 	}
-	//GetLocalTime(&(threadInfos[0].startTime));
 	GetLocalTime(&threadInfos[0].endTime);
+     return NULL;
 }
+
 int writeCompressArguments(ofstream &oufd)//log201612261359
 {
 	if (!oufd)
@@ -456,6 +515,7 @@ int mainThreadCompressInit(void)
 		cout << fileInfo.orgfileName<< " has more than one hard-link,may be you need -k option!" << endl;
 		exit(0);
 	}
+	cout << "文件大小：" << fileInfo.orgFileSize << endl;
 	//log201612261222
 	fileInfo.totalBlks = fileInfo.orgFileSize / (BLOCKTIMES * blockSiz) + \
 		(fileInfo.orgFileSize % (BLOCKTIMES * blockSiz) ? 1 : 0)
@@ -512,7 +572,8 @@ int mainThreadCompressInit(void)
 	}
 	//打开文件其实质是创建压缩文件
 	ofstream oufd;
-	oufd.open(fileInfo.zipFileName, O_WRONLY | O_CREAT, 0777 | ios::trunc);//log201612261313
+	//oufd.open(fileInfo.zipFileName, O_WRONLY | O_CREAT, 0777 | ios::trunc);//log201612261313
+	oufd.open(fileInfo.zipFileName, ios::out | ios::trunc);
 	if (!oufd.is_open())
 	{
 		printf("open error\n");
@@ -565,15 +626,17 @@ void compressMainThread(void){
 	uchar ch_thread = nthread & 0xff;
 	zipfd.write((char*)&ch_thread, sizeof(uchar));//log201612261558
 	struct stat statBuff;
-	//off_t offset = lseek(zipfd, 0, SEEK_CUR) + 	nthread*(sizeof(off_t) + sizeof(u32));
-	off_t offset = 0;
+	//--------baiwenwu-c-----
+	int count_t = zipfd.tellp();
+	off_t offset = (off_t)zipfd.tellp() + nthread*(sizeof(off_t) + sizeof(u32));
 	//printf("start pos %lld\n", lseek(zipfd, 0, SEEK_CUR));
 	char tempFile[256];
 	for (int i = 1; i <= nthread; i++)
 	{
 		zipfd.write((char*)&offset, sizeof(off_t));//log201612261558
 		zipfd.write((char*)&threadInfos[i].nblocks, sizeof(int));
-		printf("offset=%lld,blocks=%d\n", offset, threadInfos[i].nblocks);
+		cout << "offset=" << offset << "\tblocks=" << threadInfos[i].nblocks << endl;
+		//printf("offset=%lld,blocks=%d\n", offset, threadInfos[i].nblocks);
 		sprintf_s(tempFile, "%s.%d", fileInfo.zipFileName, i);//sprintf
 		if (stat(tempFile, &statBuff)<0){
 			printf("stat error\n");
@@ -589,21 +652,28 @@ void compressMainThread(void){
 
 		//open file
 		ifstream tempfd; 
-		tempfd.open(fileName, O_RDONLY);
+		tempfd.open(fileName, ios::in|ios::binary);
 		if (!tempfd.is_open()){
 			printf("open error\n");
 			exit(0);
 		}
+#if 0
+		ret = tempfd.tellg();
+		while (1)
+		{
+			char ch_t[101];
+			tempfd.read(ch_t, 100);
+			ch_t[100] = '\0';
+			cout << ch_t << endl;
+			cout<< "  tellg=" << tempfd.tellg() << "  count=" << tempfd.gcount() << endl;
+		}
+#endif
 		while (1){//将一个文件读完循环停止
-			nread = sizeof(buff);
+			nread = BUFF_SIZE;
 			tempfd.read((char*)buff, nread);//ret = read(tempfd, buff, nread);
-			ret = tempfd.tellg();
-			if (ret<0)
-			{
-				errProcess("read error", ret);
-				exit(0);
-			}
-			else if (ret == 0)
+			ret = tempfd.gcount();
+			//ret = tempfd.tellg();
+			if (ret==0)
 			{
 				//eof
 				break;
@@ -644,6 +714,239 @@ void compressMainThread(void){
 		remove(fileInfo.orgfileName);
 	}
 	zipfd.close();
+}
+
+void decompressChildProcess(int i, Str_rt *str_rPtr)
+{
+	if (!str_rPtr)
+	{
+		printf("parameter error\n");
+		exit(0);
+	}
+	Stream_t *streamPtr = &str_rPtr->str_s;
+	streamPtr->infd.close();
+	streamPtr->oufd.close();
+
+	char outFileName[256];
+	sprintf_s(outFileName, "%s.%d", streamPtr->oufileName, i);
+	sprintf_s(streamPtr->oufileName, outFileName);
+
+	streamPtr->infd.open(streamPtr->infileName,ios::in|ios::binary);
+	if (!streamPtr->infd.is_open()){
+		printf("open error\n");
+		exit(0);
+	}
+
+	streamPtr->oufd.open(streamPtr->oufileName,ios::out);//(streamPtr->oufileName, O_CREAT | O_WRONLY, 0777);
+	if (streamPtr->oufd.is_open()){
+		printf("open error\n");
+	}
+	
+	if (streamPtr->infd.tellg()<0){
+		printf("lseek error\n");
+		exit(0);
+	}
+
+	int count = 0;
+	int ret;
+	while (count<threadInfos[i].nblocks)
+	{
+		count++;
+		ret = paraseBlkCharSetMap(streamPtr);
+		if (ret<0)
+		{
+			//error
+			errProcess("paraseBlkCharSetMap", ret);
+			streamBlkCompressCleanUp(str_rPtr);
+			exit(0);
+		}
+
+		ret = paraseBlkCharCodeTable(streamPtr);
+		if (ret<0)
+		{
+			errProcess("praseBlkCharCodeTable", ret);
+			exit(0);
+		}
+
+		ret = paraseBlkBwtIndex(streamPtr);
+		if (ret<0)
+		{
+			errProcess("paraseBlkBwtIndex", ret);
+			exit(0);
+		}
+
+		str_rPtr->root = genWavtreeWithCodeTable(streamPtr->codeTable);
+		if (!str_rPtr->root)
+		{
+			errProcess("genWavtreeWithCodeTable", ERR_MEMORY);
+			exit(0);
+		}
+
+		ret = paraseBlkZipNodeWithPreorder(str_rPtr->root,streamPtr);
+		if (ret<0)
+		{
+			errProcess("paraseBlkZipNodeWithPreorder", ret);
+			exit(0);
+		}
+
+		ret = genBwtWithWaveletTree(str_rPtr->root, streamPtr);
+		if (ret<0)
+		{
+			errProcess("generateBwtWithWaveletTree", ret);
+			exit(0);
+		}
+
+		ret = genOrigBlkWithBwt(streamPtr->bwt,
+			streamPtr->blkOrigSiz,
+			streamPtr->bwtIndex,
+			streamPtr->inbuff
+			);
+		if (ret<0)
+		{
+			errProcess("genOrigBlkWithBwt", ret);
+			exit(0);
+		}
+
+		ret = streamWriteOrigBlk(streamPtr);
+		if (ret<0)
+		{
+			errProcess("streamWriteOrigBlk", ret);
+			exit(0);
+		}
+
+		//very important
+		destroyWaveletTree(str_rPtr->root);
+		str_rPtr->root = NULL;
+
+	}
+	if (str_rPtr->root)
+	{
+		destroyWaveletTree(str_rPtr->root);
+		str_rPtr->root = NULL;
+	}
+	streamBlkDecompressCleanUp(streamPtr);
+
+}
+
+
+void decompressMainThread(void){
+	int ret;
+	Str_rt Str_r;
+	Stream_t &stream = Str_r.str_s;
+	stream.workState = DECPRESS;
+
+	strcpy_s(stream.infileName, FILE_NAME_LEN, fileInfo.orgfileName);
+	GetLocalTime(&threadInfos[0].startTime);
+
+	Str_r.root = NULL;
+	ret = 0;
+	ret = streamBlkDecompressInit(&stream);
+	if (ret<0)
+	{
+		errProcess("streamBlkDecompressInit", ret);
+		exit(0);
+	}
+
+	off_t pos;
+
+	//
+	stream.infd.read((char*)&nthread, sizeof(int));//read(stream.infd, &nthread, sizeof(int));
+	int blocks;
+	off_t offset;
+	int i;
+	for (i = 1; i <= nthread; i++){
+		stream.infd.read((char*)&threadInfos[i].fileOffset, sizeof(off_t));
+		stream.infd.read((char*)&threadInfos[i].nblocks, sizeof(int));
+		//printf ("offset=%lld,blocks=%d\n",
+		//     threadInfos[i].fileOffset,threadInfos[i].nblocks);
+	}
+
+	//create child process
+	for (i = 1; i <= nthread; i++)
+	{
+		//child process
+		decompressChildProcess(i, &Str_r);
+	}
+	streamBlkDecompressCleanUp(&stream);
+	//wait for child process
+#if 0;
+	if (signal(SIGINT, sig_int_decompress) == SIG_ERR){
+		printf("signal error\n");
+		exit(0);
+	}
+	for (i = 1; i <= nthread; i++){
+		if (waitpid(threadInfos[i].threadId, NULL, 0)<0){
+			printf("waitpid error\n");
+			exit(0);
+		}
+	}
+#endif
+
+	//merge for files
+	char buff[BUFF_SIZE];
+	char tempfile[256];
+	ifstream  tempfd;
+
+	stream.oufd.open(stream.oufileName, ios::out|ios::trunc);// O_WRONLY | O_CREAT, 0666);
+	if (!stream.oufd.is_open()){
+		printf("open error\n");
+		exit(0);
+	}
+
+	for (i = 1; i <= nthread; i++)
+	{
+		sprintf_s(tempfile, "%s.%d", stream.oufileName, i);
+		tempfd.open(tempfile, ios::in);
+		if (!tempfd.is_open()){
+			printf("open error\n");
+			exit(0);
+		}
+		while (1){
+			tempfd.read((char*)buff, sizeof(buff));
+			ret = tempfd.gcount();
+			if (ret<0){
+				printf("read error\n");
+				exit(0);
+			}
+			else if (ret == 0){
+				break;
+			}
+
+			stream.oufd.write((char*)buff, ret);
+		}
+
+		//need to remove temp file
+		remove(tempfile);
+	}
+
+
+	if (!keepOrigFile){
+		remove(stream.infileName);
+	}
+	GetLocalTime(&threadInfos[0].endTime);
+	
+
+	if (verbose == 1){
+		printf("decompress done.\n");
+	}
+	else if (verbose == 2){
+		printf("decompress done.\n");
+#if 0
+		struct timeval tmpTime;
+		tmpTime.tv_sec = threadInfos[0].endTime.tv_sec - \
+			threadInfos[0].startTime.tv_sec;
+		tmpTime.tv_usec = threadInfos[0].endTime.tv_usec - \
+			threadInfos[0].startTime.tv_usec;
+		if (tmpTime.tv_usec<0){
+			tmpTime.tv_sec--;
+			tmpTime.tv_usec += 1000000;
+		}
+
+		printf("real time of mainThread:%.3f(s)\n",
+			tmpTime.tv_sec + tmpTime.tv_usec / 1000000.0
+			);
+#endif
+	}
 }
 
 

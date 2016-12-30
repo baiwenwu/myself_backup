@@ -1,8 +1,78 @@
 #include "compress.h"
 #include "errProcess.h"
+
+int getBlockDataInfo(uchar *inbuff, u32 len,bool *charMap, u32 *charFreq,u32* setSiz)
+{//log201612291103
+	if (!inbuff || !charMap || !charFreq)
+	{
+		return ERR_PARAMETER;
+	}
+	u32 i;
+	for (i = 0; i<CHAR_SET_SIZE; i++)
+	{
+		charFreq[i] = 0;
+	}
+	for (i = 0; i<len - 1; i++)
+	{
+		charFreq[inbuff[i]]++;
+	}
+	*setSiz = 0;
+	for (i = 0; i<CHAR_SET_SIZE; i++)
+	{
+		if (charFreq[i])
+		{
+			(*setSiz)++;
+			charMap[i] = true;
+		}
+		else{
+			charMap[i] = false;
+		}
+	}
+	return 0;
+}
+int getBlockSizeForHybirdCode(uchar *inbuff, u32 len, u32 &BlockSize, uchar level){
+	int ret = 0;
+	if (!inbuff)
+	{
+		return ERR_PARAMETER;
+	}
+	double runs = 0;
+	double avRuns = 0;
+	u32 i;
+	for (i = 0; i<len - 1; i++)
+		if (inbuff[i] != inbuff[i + 1])
+			runs++;
+	avRuns = len / runs;
+	int a = 0;
+	int b = 0;
+	level = 1;
+	BlockSize = 256;
+	if (level<0 || level >2)
+	{
+		errProcess("speedlevel error", -1);
+		exit(0);
+	}
+	switch (level)
+	{
+	case 0:a = 2; b = 10; break;
+	case 1:a = 4; b = 20; break;
+	case 2:a = 10; b = 50; break;
+	default:a = 4; b = 20; break;
+	}
+
+	if (runs<a)
+		BlockSize = BlockSize * 1;
+	else if (runs<b)
+		BlockSize = BlockSize * 2;
+	else
+		BlockSize = BlockSize * 4;
+	return ret;
+}
+
+
 int writeFileHeader(ofstream &oufd)
 {
-	if (oufd)
+	if (!oufd)
 	{
 		return ERR_PARAMETER;
 	}
@@ -105,10 +175,10 @@ int writeZipNode(waveletTree root, ofstream &oufd)
 	u32 bitsLen = root->zipLen;
 	int nbytes;
 	if (root->head)
-	{//log201612261530
-		nbytes = root->headLen / 8 + (root->headLen & 8 ? 1 : 0);
-		oufd.write((char*)&root->headLen, sizeof(u32));//write(zipfd, &root->headLen, sizeof(u32));
-		oufd.write((char*)root->head, nbytes);//write(zipfd, root->head, nbytes);
+	{//log201612261530//-----baiwenwu-back------------
+		//nbytes = root->headLen / 8 + (root->headLen & 8 ? 1 : 0);
+		//oufd.write((char*)&root->headLen, sizeof(u32));//write(zipfd, &root->headLen, sizeof(u32));
+		//oufd.write((char*)root->head, nbytes);//write(zipfd, root->head, nbytes);
 	}
 	nbytes = root->zipLen / 8 + (root->zipLen % 8 ? 1 : 0);
 	oufd.write((char*)&bitsLen, sizeof(u32));//write(zipfd, &bitsLen, sizeof(u32));

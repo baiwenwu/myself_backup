@@ -31,7 +31,7 @@ int	myFileSafeCreate(char *filePath){
 	if (!fileExist(filePath))
 	{
 		//will create new file
-		fp.open(filePath, ios::in);
+		fp.open(filePath, ios::out);
 		fp.close();
 		return 0;//create file ok
 	}
