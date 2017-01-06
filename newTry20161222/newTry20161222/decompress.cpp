@@ -105,6 +105,7 @@ int paraseBlkCharCodeTable(Stream_t *streamPtr)
 			nbytes = len / 8 + (len % 8 ? 1 : 0);
 
 			streamPtr->infd.read((char*)buff, nbytes);
+			ret = streamPtr->infd.gcount();
 			if (ret != nbytes)
 			{
 				return ERR_IO;
@@ -211,7 +212,7 @@ int streamBlkDecompressInit(Stream_t *streamPtr)
         exit(0);
     }
     streamPtr->oufd.open(streamPtr->oufileName,ios::out|ios::binary);
-    if(streamPtr->oufd.is_open())
+    if(!streamPtr->oufd.is_open())
     {
         printf ("open error\n");
         exit(0);
@@ -332,7 +333,8 @@ int paraseBlkCharSetMap(Stream_t *streamPtr)
 	streamPtr->setSize = setSiz;
 	return 0;
 }
-waveletTree genWavtreeWithCodeTable(char(*codeTable)[CODE_MAX_LEN])
+//waveletTree genWavtreeWithCodeTable(char(*codeTable)[CODE_MAX_LEN])
+waveletTree genWavtreeWithCodeTable(char codeTable[CHAR_SET_SIZE][CODE_MAX_LEN])
 {
 	int i, j;
 	int len;
@@ -418,6 +420,7 @@ int readZipNode(waveletTree root, ifstream &zipfd,
 
 	//read zipLen
 	//ret=fread(&(root->zipLen),sizeof(u32),1,zipFile);
+	cout << zipfd.tellg() << endl;
 	zipfd.read((char*)&(root->zipLen), sizeof(u32));
 	ret = zipfd.gcount();
 	if (ret != sizeof(u32))

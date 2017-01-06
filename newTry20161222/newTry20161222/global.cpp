@@ -2,6 +2,7 @@
 #include"parameter.h"
 #include <fcntl.h>
 #include <string>
+
 #include "libdivsufsort\divsufsort.h"
 #define BUFF_SIZE 4096
 //paramter
@@ -128,7 +129,7 @@ int threadBlkInit(Str_rt *str_r, int index){
 		printf("open error\n");
 		exit(0);
 	}
-	streamPtr->oufd.open(streamPtr->oufileName, ios::out);//最后一个参数是指定权限
+	streamPtr->oufd.open(streamPtr->oufileName, ios::out|ios::binary);//最后一个参数是指定权限
 	if (!streamPtr->oufd.is_open()){
 		printf("open error\n");
 		exit(0);
@@ -142,8 +143,7 @@ int threadBlkInit(Str_rt *str_r, int index){
 	streamPtr->myFree = free;
 
 	streamPtr->inbuff = (uchar*)streamPtr->myAlloc(streamPtr->blkSiz100k\
-		* BLOCKTIMES + sizeof(uchar) + OVERSHOOT
-		);//OVERSHOOT=1000 wzip.h define定义
+		* BLOCKTIMES + sizeof(uchar) + OVERSHOOT);//OVERSHOOT=1000 wzip.h define定义
 	if (streamPtr->inbuff == NULL){
 		return ERR_MEMORY;
 	}
@@ -156,15 +156,13 @@ int threadBlkInit(Str_rt *str_r, int index){
 	}
 	//创建后缀数组,
 	streamPtr->suffixArray = (u32*)streamPtr->myAlloc(streamPtr->blkSiz100k\
-		* BLOCKTIMES * sizeof(u32) + sizeof(u32)
-		);
+		* BLOCKTIMES * sizeof(u32) + sizeof(u32));
 	if (streamPtr->suffixArray == NULL){
 		return ERR_MEMORY;
 	}
 
 	streamPtr->bwt = (uchar *)streamPtr->myAlloc(streamPtr->blkSiz100k\
-		* BLOCKTIMES + sizeof(uchar)
-		);
+		* BLOCKTIMES + sizeof(uchar));
 	if (streamPtr->bwt == NULL)
 	{
 		return ERR_MEMORY;
@@ -318,7 +316,7 @@ int streamBlkCompressCleanUp(Str_rt *str_r){
 }
 
 /*    压缩程序入口*/
-void *childThread(int i){
+void *childThread(int index){
 	int ret = 0;
 	Str_rt str_r;
 	Stream_t &stream = str_r.str_s; //log201612282342
@@ -328,10 +326,10 @@ void *childThread(int i){
 		exit(0);
 	}
 
-	u32 nread;
+	u32 nread = 0;
 	int blkCount = 0;
 	// 求SA数组和BWT变换后的L串
-	while (blkCount < threadInfos[1].nblocks)
+	while (blkCount < threadInfos[index].nblocks)
 	{
 		blkCount++;//important
 		nread = stream.blkSiz100k * BLOCKTIMES;
@@ -353,7 +351,7 @@ void *childThread(int i){
 			//eof
 			break;
 		}
-#if 1
+#if 0
 		u32 readCount = stream.infd.gcount();
 		cout << "-----" << blkCount << "-----" << endl;
 		cout << "\tgcount=\t" << readCount << endl;
@@ -365,18 +363,24 @@ void *childThread(int i){
 		ret = divsufsort(stream.inbuff, (int *)stream.suffixArray, stream.blkOrigSiz);
 		if (ret < 0)
 		{
-			errProcess("blockSort", ret);
+			errProcess("divsufsort", ret);
 			exit(0);
 		}
 		int bwtIndex;
-		ret = bw_transform(stream.inbuff, stream.bwt, (int *)stream.suffixArray,
-			stream.blkOrigSiz, &bwtIndex);
+		//ret = bw_transform(stream.inbuff, stream.bwt, (int *)stream.suffixArray,stream.blkOrigSiz, &bwtIndex);
+		ret = BWT_tansform((char*)stream.inbuff, (int *)stream.suffixArray,(char*)stream.bwt, stream.blkOrigSiz, bwtIndex);
+		stream.bwtIndex = bwtIndex;
 		//ret = getBwtTransform(stream.inbuff, stream.suffixArray,stream.bwt, stream.blkOrigSiz);
 		if (ret < 0)
 		{
 			errProcess("getBwtTransform", ret);
 			exit(0);
 		}
+		cout << bwtIndex << endl;
+		showSAandBWT((char*)stream.inbuff, (int *)stream.suffixArray, (char *)stream.bwt, (int)stream.blkOrigSiz);
+
+
+
 
 		ret = treeCode(&str_r);
 		if (ret<0)
@@ -406,26 +410,35 @@ void *childThread(int i){
 			errProcess("computeZipSizWaveletTree", zipLen);
 			exit(0);
 		}
-
+		//--------------开始写入每一个流对应的临时文件
+		cout << "\t\t起始位置1：" << stream.oufd.tellp() << endl;
 		if (stream.nodeCode == HBRID)
 		{//log201612261440
+			cout << "\t" << "2." << index << ".1";
+			cout << "编码是混合编码，写入混合编码块大小：" << stream.HBblockSize << endl;
 			uchar block_t = (stream.HBblockSize >> 8) & 0xff;
 			stream.oufd.write((char *)&block_t, sizeof(uchar));
 		}
+
+		cout << "\t\t起始位置2：" << stream.oufd.tellp() << endl;
 		ret = writeBlkCharSetMap(stream.oufd, stream.charMap);
 		if (ret<0)
 		{
 			errProcess("writeBlkCharSetMap", ret);
 			exit(0);
 		}
-
+		cout << "\t\t起始位置3：" << stream.oufd.tellp() << endl;
+		cout << "\t" << "2." << index << ".2";
+		cout << "写入编码表：" << endl;
 		ret = writeBlkCharCodeTable(stream.oufd, stream.codeTable);
 		if (ret<0)
 		{
 			errProcess("writeBlkCharCodeTable", ret);
 			exit(0);
 		}
-
+		cout << "\t\t起始位置4：" << stream.oufd.tellp() << endl;
+		cout << "\t" << "2." << index << ".3";
+		cout << "写入BWT的长度：" << stream.bwtIndex<< endl;
 		ret = writeBlkBwtIndex(stream.oufd, stream.bwtIndex);
 		if (ret<0)
 		{
@@ -434,6 +447,9 @@ void *childThread(int i){
 		}
 
 		//ret = writeBlkZipNodeWithPreorder(&stream);
+		cout << "\t\t起始位置5：" << stream.oufd.tellp() << endl;
+		cout << "\t" << "2." << index << ".4";
+		cout << "存入各个节点的信息" << endl;
 		ret = writeBlkZipNodeWithPreorder(stream.oufd, str_r.root);
 		if (ret<0)
 		{
@@ -489,6 +505,7 @@ int writeCompressArguments(ofstream &oufd)//log201612261359
 	oufd.write((char *)&blkSiz, sizeof(uchar));//write(oufd, &blkSiz100k, sizeof(uchar));
 
 	oufd.write((char*)&nodeType, sizeof(uchar));//write(oufd, &nodeType, sizeof(uchar));
+	cout << "2.写入blkSiz和nodeType: " <<(int)blkSiz << " " <<(int) nodeType << endl;
 	return 0;
 }
 int mainThreadCompressInit(void)
@@ -570,10 +587,9 @@ int mainThreadCompressInit(void)
 			);
 		exit(0);
 	}
-	//打开文件其实质是创建压缩文件
 	ofstream oufd;
 	//oufd.open(fileInfo.zipFileName, O_WRONLY | O_CREAT, 0777 | ios::trunc);//log201612261313
-	oufd.open(fileInfo.zipFileName, ios::out | ios::trunc);
+	oufd.open(fileInfo.zipFileName, ios::out | ios::trunc|ios::binary);
 	if (!oufd.is_open())
 	{
 		printf("open error\n");
@@ -608,14 +624,16 @@ void compressMainThread(void){
 
 	for (int i = 1; i <= nthread; i++)
 	{
+		cout << "\t开始压缩子文件" << fileInfo.zipFileName<<i << endl;
 		childThread(i);
 	}
 	ofstream zipfd;
-	zipfd.open(fileInfo.zipFileName, O_WRONLY | O_APPEND);
+	zipfd.open(fileInfo.zipFileName, ios::app| ios::binary);
 	if (!zipfd.is_open()){
 		printf("open error\n");
 		exit(0);
 	}
+	cout << zipfd.tellp() << endl;
 
 	int tempfd;
 
@@ -625,6 +643,7 @@ void compressMainThread(void){
 	//writeZipInfo
 	uchar ch_thread = nthread & 0xff;
 	zipfd.write((char*)&ch_thread, sizeof(uchar));//log201612261558
+	cout << "3.写入进程信息:" << nthread << endl;
 	struct stat statBuff;
 	//--------baiwenwu-c-----
 	int count_t = zipfd.tellp();
@@ -635,7 +654,7 @@ void compressMainThread(void){
 	{
 		zipfd.write((char*)&offset, sizeof(off_t));//log201612261558
 		zipfd.write((char*)&threadInfos[i].nblocks, sizeof(int));
-		cout << "offset=" << offset << "\tblocks=" << threadInfos[i].nblocks << endl;
+		cout << "4.写入子文件的偏移量：offset=" << offset << "\tblocks=" << threadInfos[i].nblocks << endl;
 		//printf("offset=%lld,blocks=%d\n", offset, threadInfos[i].nblocks);
 		sprintf_s(tempFile, "%s.%d", fileInfo.zipFileName, i);//sprintf
 		if (stat(tempFile, &statBuff)<0){
@@ -646,7 +665,8 @@ void compressMainThread(void){
 		offset += statBuff.st_size;//statBuff.st_size临时文件大小
 	}
 
-	printf("Merge files Start\n");
+	printf("Merge files Start,");
+	cout << zipfd.tellp() << endl;
 	for (int i = 1; i <= nthread; i++){
 		sprintf_s(fileName, "%s.%d", fileInfo.zipFileName, i);//将格式化数据写入buff(fileName)
 
@@ -681,14 +701,15 @@ void compressMainThread(void){
 			zipfd.write((char*)buff, ret);
 			//write(zipfd, buff, ret);
 		}
-
+		cout << "5.写入子文件:" << fileName << endl;
 		//eof
 		tempfd.close();
 		//remove tempfile
 		remove(fileName);
 	}
+	
 
-
+	cout << "结束为止" << zipfd.tellp() << endl;
 	writeFileEnd(zipfd);
 	GetLocalTime(&(threadInfos[0].endTime));
 	
@@ -737,8 +758,8 @@ void decompressChildProcess(int i, Str_rt *str_rPtr)
 		exit(0);
 	}
 
-	streamPtr->oufd.open(streamPtr->oufileName,ios::out);//(streamPtr->oufileName, O_CREAT | O_WRONLY, 0777);
-	if (streamPtr->oufd.is_open()){
+	streamPtr->oufd.open(streamPtr->oufileName,ios::out|ios::binary);//(streamPtr->oufileName, O_CREAT | O_WRONLY, 0777);
+	if (!streamPtr->oufd.is_open()){
 		printf("open error\n");
 	}
 	
@@ -749,10 +770,12 @@ void decompressChildProcess(int i, Str_rt *str_rPtr)
 
 	int count = 0;
 	int ret;
+	streamPtr->infd.seekg(threadInfos[i].fileOffset, ios::beg);
 	while (count<threadInfos[i].nblocks)
 	{
 		count++;
 		ret = paraseBlkCharSetMap(streamPtr);
+		//cout << streamPtr.
 		if (ret<0)
 		{
 			//error
@@ -760,21 +783,21 @@ void decompressChildProcess(int i, Str_rt *str_rPtr)
 			streamBlkCompressCleanUp(str_rPtr);
 			exit(0);
 		}
-
+		cout << streamPtr->infd.tellg() << endl;
 		ret = paraseBlkCharCodeTable(streamPtr);
 		if (ret<0)
 		{
 			errProcess("praseBlkCharCodeTable", ret);
 			exit(0);
 		}
-
+		cout << streamPtr->infd.tellg() << endl;
 		ret = paraseBlkBwtIndex(streamPtr);
 		if (ret<0)
 		{
 			errProcess("paraseBlkBwtIndex", ret);
 			exit(0);
 		}
-
+		cout << streamPtr->infd.tellg() << endl;
 		str_rPtr->root = genWavtreeWithCodeTable(streamPtr->codeTable);
 		if (!str_rPtr->root)
 		{
@@ -830,6 +853,8 @@ void decompressChildProcess(int i, Str_rt *str_rPtr)
 
 
 void decompressMainThread(void){
+	char BB_oufileName[FILE_NAME_LEN];
+	strcpy_s(fileInfo.orgfileName, FILE_NAME_LEN, "management-server.log.wz");
 	int ret;
 	Str_rt Str_r;
 	Stream_t &stream = Str_r.str_s;
@@ -850,7 +875,7 @@ void decompressMainThread(void){
 	off_t pos;
 
 	//
-	stream.infd.read((char*)&nthread, sizeof(int));//read(stream.infd, &nthread, sizeof(int));
+	stream.infd.read((char*)&nthread, sizeof(uchar));//read(stream.infd, &nthread, sizeof(int));
 	int blocks;
 	off_t offset;
 	int i;
@@ -860,7 +885,7 @@ void decompressMainThread(void){
 		//printf ("offset=%lld,blocks=%d\n",
 		//     threadInfos[i].fileOffset,threadInfos[i].nblocks);
 	}
-
+	strcpy_s(BB_oufileName, FILE_NAME_LEN, stream.oufileName);
 	//create child process
 	for (i = 1; i <= nthread; i++)
 	{
@@ -885,9 +910,10 @@ void decompressMainThread(void){
 	//merge for files
 	char buff[BUFF_SIZE];
 	char tempfile[256];
+	
 	ifstream  tempfd;
 
-	stream.oufd.open(stream.oufileName, ios::out|ios::trunc);// O_WRONLY | O_CREAT, 0666);
+	stream.oufd.open(BB_oufileName, ios::out | ios::trunc);// O_WRONLY | O_CREAT, 0666);
 	if (!stream.oufd.is_open()){
 		printf("open error\n");
 		exit(0);
@@ -895,7 +921,7 @@ void decompressMainThread(void){
 
 	for (i = 1; i <= nthread; i++)
 	{
-		sprintf_s(tempfile, "%s.%d", stream.oufileName, i);
+		sprintf_s(tempfile, "%s", stream.oufileName, i);
 		tempfd.open(tempfile, ios::in);
 		if (!tempfd.is_open()){
 			printf("open error\n");

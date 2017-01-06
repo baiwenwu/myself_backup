@@ -6,7 +6,7 @@
 using namespace std;
 #define MAX_THREADS 1
 #define MAX_FILE_LEN 1024
-#define BLOCKTIMES 1048576	//log201612261222
+#define BLOCKTIMES 1048576	//log201612261222(1024*1024)
 //#include <stdlib.h>
 //#include <stdio.h>
 

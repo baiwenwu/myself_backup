@@ -12,6 +12,8 @@
 #include"compress.h"
 #include"decompress.h"
 
+#include "test_bai.h"
+
 
 #define _FILE_OFFSET_BITS 64
 

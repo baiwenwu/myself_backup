@@ -3,7 +3,7 @@
 int main()
 {
 	getParameters();
-	//compressMainThread();
+	compressMainThread();
 	cout << "-------------decompress---------------" << endl;
 	decompressMainThread();
 	cout << "I love you!" << endl;

@@ -77,6 +77,7 @@ int writeFileHeader(ofstream &oufd)
 		return ERR_PARAMETER;
 	}
 	uchar buff[50] = { WZIP_W, WZIP_Z, WZIP_I, WZIP_P, WZIP__, WZIP_H, '\0' };
+	cout << "1.写入head信息：" << buff << endl;
 	//log201612261334
 	oufd.write((char *)buff, strlen((char*)buff));//write(const unsigned char *buf, int num);
 	return 0;
@@ -88,7 +89,7 @@ int writeFileEnd(ofstream &zipfd)
 	return 0;
 }
 int writeBlkCharSetMap(ofstream &oufd, const bool *charMap)
-{////log201612261454
+{//log201612261454
 	if (!charMap)
 	{
 		return ERR_PARAMETER;
@@ -110,6 +111,8 @@ int writeBlkCharSetMap(ofstream &oufd, const bool *charMap)
 		}
 	}
 	oufd.write((char *)buff, sizeof(buff));//write(streamPtr->oufd, buff, sizeof(buff));
+	cout << "\t" << "2." << "1" << ".1";
+	cout << "写入字符表：" << buff << endl;
 	return 0;
 }
 int writeBlkCharCodeTable(ofstream &oufd, char codeTable[][CODE_MAX_LEN])
@@ -181,9 +184,13 @@ int writeZipNode(waveletTree root, ofstream &oufd)
 		//oufd.write((char*)root->head, nbytes);//write(zipfd, root->head, nbytes);
 	}
 	nbytes = root->zipLen / 8 + (root->zipLen % 8 ? 1 : 0);
+	//char *ch_tmp = "baiwenwu";
+	//oufd.write((char*)ch_tmp, strlen(ch_tmp));
+	cout << "\t\t\t起始位置5.1：" << oufd.tellp() << endl;
 	oufd.write((char*)&bitsLen, sizeof(u32));//write(zipfd, &bitsLen, sizeof(u32));
+	cout << "\t\t\t起始位置5.2：" << oufd.tellp() << endl;
 	oufd.write((char*)root->zipBuff, nbytes);//write(zipfd, root->zipBuff, nbytes);
-
+	cout << oufd.tellp() << endl;
 	if (root->leftChild)
 	{
 		ret = writeZipNode(root->leftChild, oufd);
