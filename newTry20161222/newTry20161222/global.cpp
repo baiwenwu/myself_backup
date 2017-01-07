@@ -376,8 +376,8 @@ void *childThread(int index){
 			errProcess("getBwtTransform", ret);
 			exit(0);
 		}
-		cout << bwtIndex << endl;
-		showSAandBWT((char*)stream.inbuff, (int *)stream.suffixArray, (char *)stream.bwt, (int)stream.blkOrigSiz);
+		//cout << bwtIndex << endl;
+		//showSAandBWT((char*)stream.inbuff, (int *)stream.suffixArray, (char *)stream.bwt, (int)stream.blkOrigSiz);
 
 
 
@@ -411,34 +411,34 @@ void *childThread(int index){
 			exit(0);
 		}
 		//--------------开始写入每一个流对应的临时文件
-		cout << "\t\t起始位置1：" << stream.oufd.tellp() << endl;
+		//cout << "\t\t起始位置1：" << stream.oufd.tellp() << endl;
 		if (stream.nodeCode == HBRID)
 		{//log201612261440
-			cout << "\t" << "2." << index << ".1";
-			cout << "编码是混合编码，写入混合编码块大小：" << stream.HBblockSize << endl;
+			//cout << "\t" << "2." << index << ".1";
+			//cout << "编码是混合编码，写入混合编码块大小：" << stream.HBblockSize << endl;
 			uchar block_t = (stream.HBblockSize >> 8) & 0xff;
 			stream.oufd.write((char *)&block_t, sizeof(uchar));
 		}
 
-		cout << "\t\t起始位置2：" << stream.oufd.tellp() << endl;
+		//cout << "\t\t起始位置2：" << stream.oufd.tellp() << endl;
 		ret = writeBlkCharSetMap(stream.oufd, stream.charMap);
 		if (ret<0)
 		{
 			errProcess("writeBlkCharSetMap", ret);
 			exit(0);
 		}
-		cout << "\t\t起始位置3：" << stream.oufd.tellp() << endl;
-		cout << "\t" << "2." << index << ".2";
-		cout << "写入编码表：" << endl;
+		//cout << "\t\t起始位置3：" << stream.oufd.tellp() << endl;
+		//cout << "\t" << "2." << index << ".2";
+		//cout << "写入编码表：" << endl;
 		ret = writeBlkCharCodeTable(stream.oufd, stream.codeTable);
 		if (ret<0)
 		{
 			errProcess("writeBlkCharCodeTable", ret);
 			exit(0);
 		}
-		cout << "\t\t起始位置4：" << stream.oufd.tellp() << endl;
-		cout << "\t" << "2." << index << ".3";
-		cout << "写入BWT的长度：" << stream.bwtIndex<< endl;
+		//cout << "\t\t起始位置4：" << stream.oufd.tellp() << endl;
+		//cout << "\t" << "2." << index << ".3";
+		//cout << "写入BWT的长度：" << stream.bwtIndex<< endl;
 		ret = writeBlkBwtIndex(stream.oufd, stream.bwtIndex);
 		if (ret<0)
 		{
@@ -447,9 +447,9 @@ void *childThread(int index){
 		}
 
 		//ret = writeBlkZipNodeWithPreorder(&stream);
-		cout << "\t\t起始位置5：" << stream.oufd.tellp() << endl;
-		cout << "\t" << "2." << index << ".4";
-		cout << "存入各个节点的信息" << endl;
+		//cout << "\t\t起始位置5：" << stream.oufd.tellp() << endl;
+		//cout << "\t" << "2." << index << ".4";
+		//cout << "存入各个节点的信息" << endl;
 		ret = writeBlkZipNodeWithPreorder(stream.oufd, str_r.root);
 		if (ret<0)
 		{
@@ -633,7 +633,7 @@ void compressMainThread(void){
 		printf("open error\n");
 		exit(0);
 	}
-	cout << zipfd.tellp() << endl;
+	//cout << zipfd.tellp() << endl;
 
 	int tempfd;
 
@@ -851,7 +851,6 @@ void decompressChildProcess(int i, Str_rt *str_rPtr)
 
 }
 
-
 void decompressMainThread(void){
 	char BB_oufileName[FILE_NAME_LEN];
 	strcpy_s(fileInfo.orgfileName, FILE_NAME_LEN, "management-server.log.wz");
@@ -913,7 +912,7 @@ void decompressMainThread(void){
 	
 	ifstream  tempfd;
 
-	stream.oufd.open(BB_oufileName, ios::out | ios::trunc);// O_WRONLY | O_CREAT, 0666);
+	stream.oufd.open(BB_oufileName, ios::out | ios::trunc|ios::binary);// O_WRONLY | O_CREAT, 0666);
 	if (!stream.oufd.is_open()){
 		printf("open error\n");
 		exit(0);
@@ -942,6 +941,7 @@ void decompressMainThread(void){
 		}
 
 		//need to remove temp file
+		tempfd.close();
 		remove(tempfile);
 	}
 

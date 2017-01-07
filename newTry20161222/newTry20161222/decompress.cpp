@@ -420,7 +420,7 @@ int readZipNode(waveletTree root, ifstream &zipfd,
 
 	//read zipLen
 	//ret=fread(&(root->zipLen),sizeof(u32),1,zipFile);
-	cout << zipfd.tellg() << endl;
+	//cout << zipfd.tellg() << endl;
 	zipfd.read((char*)&(root->zipLen), sizeof(u32));
 	ret = zipfd.gcount();
 	if (ret != sizeof(u32))
