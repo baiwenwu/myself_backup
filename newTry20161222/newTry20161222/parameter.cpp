@@ -41,6 +41,9 @@ NodeCodeType nodeCodeTypeMap(int val){
 	case 3://----------baiwenwu-c----------
 		return HBRID;
 		break;
+	case 4://----------baiwenwu-c----------
+		return PLUSONE;
+		break;
 	default:
 		cout << "unknown shape,choose default" << endl;
 		//printf("unkonwn codeType, choose default\n");

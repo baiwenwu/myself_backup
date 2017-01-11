@@ -16,7 +16,7 @@ int blockSiz = 9;//1-9
 int treeType = 3;//1-3
 
 //-g :nodeCOde
-int nodeCode = 1;//1-3
+int nodeCode = 1;//1-4
 
 //-v :verbose level
 int verbose = 0;//0-2
@@ -42,6 +42,11 @@ int workState = -1;//1,2
 //    wzip [-h]
 // license   :
 //    wzip [-l]
+//加速表
+
+u32 HBblockSize_t = 256;
+u32 HB_Have = 0;
+u32 HB_sp = 1;
 fileInfo_t fileInfo;
 //thread[0] is for main thread.
 threadInfo_t threadInfos[MAX_THREADS + 1];
@@ -73,7 +78,7 @@ int getParameters()
 	}
 	nodeCode = 1;//g
 	if (nodeCode <= 0 ||
-		nodeCode>2
+		nodeCode>4
 		){
 		printf("nodeCode should within [1-2]\n");
 		return ERR_PARAMETER;
@@ -89,6 +94,7 @@ int getParameters()
 	keepOrigFile = 1;//k
 	overWrite = 1;//f
 	//d
+	workState = -1;
 	if (workState == -1){
 		workState = 0;
 	}
@@ -108,10 +114,98 @@ int getParameters()
 		return ERR_PARAMETER;
 	}
 		
-	strcpy_s(fileInfo.orgfileName, FILE_NAME_LEN,"management-server.log");
+	//strcpy_s(fileInfo.orgfileName, FILE_NAME_LEN,"management-server.log");
+	strcpy_s(fileInfo.orgfileName, FILE_NAME_LEN, (char*)FILENAME);
 	return 0;
 }
 
+int getHBblockSizeName(char* fileName, u32 &HB_blockSize, int  fileSize)
+{
+	char *buff = new char[fileSize + 100];
+	if (!buff)
+	{
+		return ERR_PARAMETER;
+	}
+	ifstream in_t;
+	in_t.open(fileName, ios::in || ios::binary);
+	if (!in_t.is_open())
+	{
+		cout << "open orFile is error!" << endl;
+		exit(0);
+	}
+	in_t.read(buff, fileSize + 99);
+	int count = in_t.gcount();
+	if (count != fileSize)
+	{
+		cout << "读出文件出错！" << endl;
+	}
+	double runs = 0;
+	double avRuns = 0;
+	u32 i;
+	for (i = 0; i<fileSize-1; i++)
+		if (buff[i] != buff[i + 1])
+			runs++;
+	avRuns = fileSize / runs;
+	int a = 0;
+	int b = 0;
+	int speedlevel = HB_sp;
+	if (speedlevel<0 || speedlevel >2)
+	{
+		errProcess("speedlevel error", -1);
+		exit(0);
+	}
+	switch (speedlevel)
+	{
+		case 0:a = 2; b = 10; break;
+		case 1:a = 4; b = 20; break;
+		case 2:a = 10; b = 50; break;
+		default:a = 4; b = 20; break;
+	}
+
+	if (avRuns<a)
+		HB_blockSize = HB_blockSize * 1;
+	else if (avRuns<b)
+		HB_blockSize = HB_blockSize * 2;
+	else
+		HB_blockSize = HB_blockSize * 4;
+	delete[] buff;
+	buff = NULL;
+	return 0;
+}
+int getHBblockSize(char* buff, u32 &HB_blockSize, int  len)
+{
+	double runs = 0;
+	double avRuns = 0;
+	u32 i;
+	for (i = 0; i<len; i++)
+		if (buff[i] != buff[i + 1])
+			runs++;
+	avRuns = len / runs;
+	int a = 0;
+	int b = 0;
+	int speedlevel = HB_sp;
+	if (speedlevel<0 || speedlevel >2)
+	{
+		errProcess("speedlevel error", -1);
+		exit(0);
+	}
+	switch (speedlevel)
+	{
+	case 0:a = 2; b = 10; break;
+	case 1:a = 4; b = 20; break;
+	case 2:a = 10; b = 50; break;
+	default:a = 4; b = 20; break;
+	}
+
+	if (avRuns<a)
+		HB_blockSize = HB_blockSize * 1;
+	else if (avRuns<b)
+		HB_blockSize = HB_blockSize * 2;
+	else
+		HB_blockSize = HB_blockSize * 4;
+	return 0;
+
+}
 int threadBlkInit(Str_rt *str_r, int index){
 	int ret;
 	Stream_t *streamPtr = &str_r->str_s;
@@ -342,8 +436,7 @@ void *childThread(int index){
 			exit(0);
 		}
 		//nread = ret;
-
-	
+		
 		stream.blkOrigSiz = nread + 1;
 		stream.inbuff[stream.blkOrigSiz - 1] = '\0';
 		if (stream.blkOrigSiz == 0)
@@ -376,11 +469,14 @@ void *childThread(int index){
 			errProcess("getBwtTransform", ret);
 			exit(0);
 		}
+		//log201701081726
+		if (BitsCodeType == HBRID)
+		{
+			getHBblockSize((char*)stream.bwt, HBblockSize_t, nread);
+			stream.HBblockSize = HBblockSize_t;
+		}
 		//cout << bwtIndex << endl;
 		//showSAandBWT((char*)stream.inbuff, (int *)stream.suffixArray, (char *)stream.bwt, (int)stream.blkOrigSiz);
-
-
-
 
 		ret = treeCode(&str_r);
 		if (ret<0)
@@ -446,7 +542,6 @@ void *childThread(int index){
 			exit(0);
 		}
 
-		//ret = writeBlkZipNodeWithPreorder(&stream);
 		//cout << "\t\t起始位置5：" << stream.oufd.tellp() << endl;
 		//cout << "\t" << "2." << index << ".4";
 		//cout << "存入各个节点的信息" << endl;
@@ -505,7 +600,6 @@ int writeCompressArguments(ofstream &oufd)//log201612261359
 	oufd.write((char *)&blkSiz, sizeof(uchar));//write(oufd, &blkSiz100k, sizeof(uchar));
 
 	oufd.write((char*)&nodeType, sizeof(uchar));//write(oufd, &nodeType, sizeof(uchar));
-	cout << "2.写入blkSiz和nodeType: " <<(int)blkSiz << " " <<(int) nodeType << endl;
 	return 0;
 }
 int mainThreadCompressInit(void)
@@ -521,7 +615,6 @@ int mainThreadCompressInit(void)
 		return ERR_FILE_NAME;
 	}
 
-	//state函数是通过文件名filename获取文件信息，并保存在对应的结构体stat中
 	if (stat(fileInfo.orgfileName, &fileInfo.fileStat)<0){
 		printf("stat error\n");
 		return ERR_FILE_NAME;
@@ -538,7 +631,7 @@ int mainThreadCompressInit(void)
 		(fileInfo.orgFileSize % (BLOCKTIMES * blockSiz) ? 1 : 0)
 		;
 
-	printf("totalBlks :%d\n", fileInfo.totalBlks);
+	//printf("totalBlks :%d\n", fileInfo.totalBlks);
 	if (fileInfo.totalBlks<nthread){//log201612261304
 		nthread = fileInfo.totalBlks;
 	}
@@ -550,7 +643,7 @@ int mainThreadCompressInit(void)
 
 
 	int blksPerThread = fileInfo.totalBlks / nthread;
-	printf("blksPerThread:%d\n", blksPerThread);
+	//printf("blksPerThread:%d\n", blksPerThread);
 
 	for (i = 1; i <= nthread; i++){
 		memset(&threadInfos[i], 0, sizeof(threadInfo_t));
@@ -558,7 +651,7 @@ int mainThreadCompressInit(void)
 	}
 
 	int ncurBlks = blksPerThread*nthread;
-	printf("ncurBlks=%d\n", ncurBlks);
+	//printf("ncurBlks=%d\n", ncurBlks);
 	while (ncurBlks<fileInfo.totalBlks){
 		threadInfos[(ncurBlks%nthread) + 1].nblocks++;
 		ncurBlks++;
@@ -570,7 +663,7 @@ int mainThreadCompressInit(void)
 		pos += threadInfos[i].nblocks*blockSiz * BLOCKTIMES;
 	}
 
-#if 1
+#if 0
 	//for show file offset
 	for (i = 1; i <= nthread; i++){
 		printf("thread %i: %u\n", i, threadInfos[i].fileOffset);
@@ -614,7 +707,7 @@ void compressMainThread(void){
 	int ret;
 
 	char fileName[MAX_FILE_LEN];
-
+	nodeCode = BitsCodeType;
 	GetLocalTime(&(threadInfos[0].startTime));
 	ret = mainThreadCompressInit();
 	if (ret<0){
@@ -624,7 +717,7 @@ void compressMainThread(void){
 
 	for (int i = 1; i <= nthread; i++)
 	{
-		cout << "\t开始压缩子文件" << fileInfo.zipFileName<<i << endl;
+		//cout << "\t开始压缩子文件" << fileInfo.zipFileName<<i << endl;
 		childThread(i);
 	}
 	ofstream zipfd;
@@ -643,7 +736,7 @@ void compressMainThread(void){
 	//writeZipInfo
 	uchar ch_thread = nthread & 0xff;
 	zipfd.write((char*)&ch_thread, sizeof(uchar));//log201612261558
-	cout << "3.写入进程信息:" << nthread << endl;
+	//cout << "3.写入进程信息:" << nthread << endl;
 	struct stat statBuff;
 	//--------baiwenwu-c-----
 	int count_t = zipfd.tellp();
@@ -654,7 +747,7 @@ void compressMainThread(void){
 	{
 		zipfd.write((char*)&offset, sizeof(off_t));//log201612261558
 		zipfd.write((char*)&threadInfos[i].nblocks, sizeof(int));
-		cout << "4.写入子文件的偏移量：offset=" << offset << "\tblocks=" << threadInfos[i].nblocks << endl;
+		//cout << "4.写入子文件的偏移量：offset=" << offset << "\tblocks=" << threadInfos[i].nblocks << endl;
 		//printf("offset=%lld,blocks=%d\n", offset, threadInfos[i].nblocks);
 		sprintf_s(tempFile, "%s.%d", fileInfo.zipFileName, i);//sprintf
 		if (stat(tempFile, &statBuff)<0){
@@ -701,7 +794,7 @@ void compressMainThread(void){
 			zipfd.write((char*)buff, ret);
 			//write(zipfd, buff, ret);
 		}
-		cout << "5.写入子文件:" << fileName << endl;
+		//cout << "5.写入子文件:" << fileName << endl;
 		//eof
 		tempfd.close();
 		//remove tempfile
@@ -709,7 +802,7 @@ void compressMainThread(void){
 	}
 	
 
-	cout << "结束为止" << zipfd.tellp() << endl;
+	cout << "压缩后的大小：" << zipfd.tellp() << endl;
 	writeFileEnd(zipfd);
 	GetLocalTime(&(threadInfos[0].endTime));
 	
@@ -774,6 +867,10 @@ void decompressChildProcess(int i, Str_rt *str_rPtr)
 	while (count<threadInfos[i].nblocks)
 	{
 		count++;
+		if (streamPtr->nodeCode == HBRID)
+		{
+			ret = paraseHBblockSize(streamPtr);
+		}
 		ret = paraseBlkCharSetMap(streamPtr);
 		//cout << streamPtr.
 		if (ret<0)
@@ -853,7 +950,8 @@ void decompressChildProcess(int i, Str_rt *str_rPtr)
 
 void decompressMainThread(void){
 	char BB_oufileName[FILE_NAME_LEN];
-	strcpy_s(fileInfo.orgfileName, FILE_NAME_LEN, "management-server.log.wz");
+
+	strcpy_s(fileInfo.orgfileName, FILE_NAME_LEN, (char *)FILENAME);
 	int ret;
 	Str_rt Str_r;
 	Stream_t &stream = Str_r.str_s;

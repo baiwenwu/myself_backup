@@ -1,36 +1,29 @@
 #include "bitArray.h"
 #include<time.h>
-u32 blockSize = 256;
-bitArray::bitArray(u32 bitsLen, uchar bits)
+bitArray::bitArray(u32 bitsLen, uchar bits,u32 BlockSize)
 {
 	arr = NULL;
 	bitLen = bitsLen;
 	setBits = bits;
 	mask = (1 << bits) - 1;
-	//if (!bitsLen||!bits)
-	//{
-	//	printf("bits数组输入参数错误!\n");
-	//}
-	u32 headNum = bitsLen / blockSize;
-	arrLen = ((headNum*bits) >> bits) + 2;
-	arr = (uchar *)malloc(arrLen*sizeof(uchar));
-	memset(arr, 0, arrLen*sizeof(uchar));
-	if (!arr)
+	if (bitsLen != 0 && bits != 0 && BlockSize != 0)
 	{
-		printf("calloc head error! \n");
+		u32 headNum = bitsLen / BlockSize;
+		u32 arrLen = headNum >> 1;
+		arr = new uchar[arrLen];
+		if (!arr)
+		{
+			cout << "new uchar[arrLen] is error! " << endl;
+		}
+		memset(arr, 0, arrLen*sizeof(uchar));
 	}
 	currIndex = 0;
 	blockNum = 0;
 }
 int bitArray::writeValue(u16 type)
 {
-	if (!arr)
-	{
-		printf("write type to headArray error!\n");
-		return -1;
-	}
 	u32 words = currIndex >> setBits;
-	u32 offset = currIndex & 7u;
+	u32 offset = currIndex & 0x7;
 	u16 tmp = arr[words];
 	tmp = tmp << 8;
 	tmp = (tmp >> (16 - setBits - offset)) + type;
@@ -45,20 +38,36 @@ int bitArray::getValue_i(u32 i)
 {
 	u32 index = i*setBits;
 	u32 words = index >> setBits;
-	u32 offset = index & 7;
+	u32 offset = index & 0x7;
 	u16 tmp = arr[words++];
 	tmp = tmp << 8;
 	tmp += arr[words];
 	return (tmp >> (16 - setBits - offset)) & mask;
 }
-int bitArray::testArr()
+int bitArray::getValue_index()
 {
-	if (!arr)
-	{
-		printf("the arr is NULL ,you can't write or get value !\n");
-		return -1;
-	}
-	return 0;
+	u32 words = currIndex >> setBits;
+	u32 offset = currIndex & 0x7;
+	u16 tmp = arr[words++];
+	tmp = tmp << 8;
+	tmp += arr[words];
+	currIndex += setBits;
+	return (tmp >> (16 - setBits - offset)) & mask;
+}
+void bitArray::setCurrValue(u32 index,u32 words,uchar offset)
+{
+	currIndex = index;
+	currWords = words;
+	currOffset = offset;
+}
+int bitArray::getBitsLenofArray()
+{
+	return blockNum*setBits;
+}
+void bitArray::destroyBtiArray()
+{
+	delete[] arr;
+	arr = NULL;
 }
 void bitArray_test()
 {
@@ -66,7 +75,7 @@ void bitArray_test()
 	int NUM = 10000;
 
 	u16 randArray[10000] = { 0 };
-	bitArray head(NUM * 256, 3);
+	bitArray head(NUM * 256, 3,256);
 	int i = 0;
 	srand(time(0));
 	for (; i < NUM; i++)
@@ -90,7 +99,8 @@ int bitArray:: structSize()
 {
 	int size = 0;
 	size += sizeof(u32) * 4;
-	size += sizeof(uchar)*arrLen;
+	int nbyte = ((blockNum*setBits) >> 3) + (((blockNum*setBits) & 0x7) ? 1 : 0);
+	size += nbyte;
 	return 0;
 
 }

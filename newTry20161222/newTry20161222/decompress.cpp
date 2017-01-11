@@ -65,12 +65,14 @@ int paraseNodeCodeType(Stream_t *streamPtr)
 		return ERR_IO;
 	}
 
-	if (codeType>1)
+	if (codeType>4)
 	{
 		return ERR_CRC_CHECK;
 	}
-
-	streamPtr->nodeCode = codeType ? RLE_DELTA : RLE_GAMA;
+	if (codeType > 2)
+		streamPtr->nodeCode = codeType - 2 ? PLUSONE : HBRID;
+	else
+		streamPtr->nodeCode = codeType ? RLE_DELTA : RLE_GAMA;
 	return 0;
 }
 int paraseBlkCharCodeTable(Stream_t *streamPtr)
@@ -157,7 +159,65 @@ int paraseBlkBwtIndex(Stream_t *streamPtr)
 	return 0;
 }
 
-//bug is here
+void rlBitMapInit()
+{
+	u16 R1 = 0,//打头的数字
+		R2 = 0,//可解码个数
+		R3 = 0,//偏移量
+		R4 = 0;//有效解码位数,暂且不用
+	u16 mask = -1;
+	u32 tmp = -1;
+	RLBITMAP[0] = 16ULL << 24;
+	for (u32 i = 1; i < (1ULL << 8); i++)
+	{
+		u32 j = 1ULL << 15;
+		u32 num0 = 0;
+		while (j)
+		{
+			if (i&j)
+				if (num0)
+				{
+					RLBITMAP[i] = num0 << 24;
+					break;
+				}
+			num0++;
+			j = j >> 1;
+		}
+	}
+	for (u32 i = (1ULL << 8); i < 65536; i++)
+	{
+		R1 = R2 = R3 = R4 = 0;
+		u32 andx = 1ULL << 15;
+		u32 num0 = 0;
+		while (andx)
+		{
+			if (i&andx)
+			{
+				if (!R2)
+				{
+					R2 = (num0 << 1) + 1;
+					R1 = i >> (16 - R2);
+				}
+				if ((16 - R4)>(num0 << 1))
+				{
+					R3++;
+					R4 += (num0 << 1) + 1;
+				}
+				andx = andx >> (num0 + 1);
+				num0 = 0;
+			}
+			else
+			{
+				num0++;
+				andx = andx >> 1;
+			}
+		}
+		RLBITMAP[i] += (R4 & 0xff);
+		RLBITMAP[i] = (RLBITMAP[i] << 8) + (R3);
+		RLBITMAP[i] = (RLBITMAP[i] << 8) + (R2);
+		RLBITMAP[i] = (RLBITMAP[i] << 8) + (R1);
+	}
+}
 int streamBlkDecompressInit(Stream_t *streamPtr)
 {
 	if (!streamPtr)
@@ -241,8 +301,12 @@ int streamBlkDecompressInit(Stream_t *streamPtr)
 		printf("paraseNodeCodeType error\n");
 		return ERR_CRC_CHECK;
 	}
-
 	
+	if (streamPtr->nodeCode == 2)
+	{//为混合编码初始化加速表
+		rlBitMapInit();
+	}
+
 	streamPtr->blkOrigSiz=0;
 	streamPtr->blkAfterSiz=0;
 
@@ -291,6 +355,18 @@ int streamBlkDecompressInit(Stream_t *streamPtr)
 	streamPtr->accCpuTime=0;
 	streamPtr->accBitsPerChar=-1;
 	streamPtr->accRatio=-1;
+	return 0;
+}
+int paraseHBblockSize(Stream_t *streamPtr)
+{
+	if (!streamPtr)
+	{
+		return ERR_PARAMETER;
+	}
+	uchar nblocks;
+	streamPtr->infd.read((char*)&nblocks, sizeof(uchar));
+	streamPtr->HBblockSize = nblocks;
+	streamPtr->HBblockSize = streamPtr->HBblockSize << 8;
 	return 0;
 }
 int paraseBlkCharSetMap(Stream_t *streamPtr)
@@ -400,6 +476,7 @@ waveletTree genWavtreeWithCodeTable(char codeTable[CHAR_SET_SIZE][CODE_MAX_LEN])
 
 	return root;
 }
+
 int readZipNode(waveletTree root, ifstream &zipfd,
 	int maxBisLen, NodeCodeType nodeType)
 {
@@ -411,7 +488,8 @@ int readZipNode(waveletTree root, ifstream &zipfd,
 
 	//internal node
 	int nbytes = maxBisLen / 8 + (maxBisLen % 8 ? 1 : 0);
-	root->bitBuff = (uchar*)malloc(nbytes);
+	//root->bitBuff = (uchar*)malloc(nbytes);
+	root->bitBuff = new uchar[nbytes];
 	if (!root->bitBuff)
 	{
 		return ERR_MEMORY;
@@ -429,7 +507,8 @@ int readZipNode(waveletTree root, ifstream &zipfd,
 	}
 
 	int zipBytes = root->zipLen / 8 + (root->zipLen % 8 ? 1 : 0);
-	root->zipBuff = (uchar*)malloc(zipBytes);
+	//root->zipBuff = (uchar*)malloc(zipBytes);
+	root->zipBuff = new uchar[zipBytes];
 	if (!root->zipBuff)
 	{
 		return ERR_MEMORY;
@@ -458,9 +537,22 @@ int readZipNode(waveletTree root, ifstream &zipfd,
 		}
 		root->bitLen = ret;
 	}
-	else
+	else if (nodeType == RLE_DELTA)
 	{
 		ret = runLengthDeltaDecode(root->zipBuff,
+			root->zipLen,
+			root->bitBuff
+			);
+		if (ret<0)
+		{
+			errProcess("runLengthDeltaDecode", ret);
+			return ret;
+		}
+		root->bitLen = ret;
+	}
+	else
+	{
+		ret = runLengthPlusOneDecode(root->zipBuff,
 			root->zipLen,
 			root->bitBuff
 			);
@@ -491,6 +583,91 @@ int readZipNode(waveletTree root, ifstream &zipfd,
 
 	return 0;
 }
+int readZipNode_HB(waveletTree root, Stream_t *streamPtr,
+	int maxBisLen)
+{
+	if (root->leftChild == NULL && root->righChild == NULL)
+	{
+		//leaf node
+		return 0;
+	}
+	
+	//internal node
+	int ret;
+	
+	//for head
+	root->head = new bitArray(maxBisLen, 3, streamPtr->HBblockSize);
+	streamPtr->infd.read((char*)&root->head->bitLen, sizeof(u32));
+	ret = streamPtr->infd.gcount();
+	if (ret != sizeof(u32))
+	{
+		return ERR_IO;
+	}
+	int headBytes = root->head->bitLen / 8 + (root->head->bitLen % 8 ? 1 : 0);
+	streamPtr->infd.read((char*)root->head->arr, headBytes);
+	ret = streamPtr->infd.gcount();
+	if (ret != headBytes)
+	{
+		return ERR_IO;
+	}
+	//for zipBuff
+	int nbytes = maxBisLen / streamPtr->HBblockSize + (maxBisLen % 8 ? 1 : 0);
+	root->bitBuff = new uchar[nbytes];
+	if (!root->bitBuff) 
+	{
+		return ERR_MEMORY;
+	}
+	streamPtr->infd.read((char*)&(root->zipLen), sizeof(u32));
+	ret = streamPtr->infd.gcount();
+	if (ret != sizeof(u32))
+	{
+		return ERR_IO;
+	}
+	int zipBytes = root->zipLen / 8 + (root->zipLen % 8 ? 1 : 0);
+	root->zipBuff = new uchar[zipBytes];
+	if (!root->zipBuff)
+	{
+		return ERR_MEMORY;
+	}
+	streamPtr->infd.read((char*)root->zipBuff, zipBytes);
+	ret = streamPtr->infd.gcount();
+	if (ret != zipBytes)
+	{
+		return ERR_IO;
+	}
+
+
+	//decompress HYBIRD zipBuff to bitBuff
+	//ret = runLengthGammaDecode(root->zipBuff,root->zipLen,root->bitBuff	);
+	ret = hybirdDecode(root, streamPtr->HBblockSize);
+	if (ret<0)
+	{
+		errProcess("DeHyBirdCode error!", ret);
+		return ret;
+	}
+	root->bitLen = ret;
+	root->bitLen = maxBisLen;
+	
+	if (root->leftChild)
+	{
+		ret = readZipNode_HB(root->leftChild, streamPtr, root->bitLen);
+		if (ret<0)
+		{
+			return ret;
+		}
+	}
+	if (root->righChild)
+	{
+		ret = readZipNode_HB(root->righChild, streamPtr, root->bitLen);
+		if (ret<0)
+		{
+			return ret;
+		}
+	}
+
+	return 0;
+
+}
 int paraseBlkZipNodeWithPreorder(waveletTree root,Stream_t *streamPtr)
 {
 	if (!streamPtr)
@@ -498,11 +675,17 @@ int paraseBlkZipNodeWithPreorder(waveletTree root,Stream_t *streamPtr)
 		return ERR_PARAMETER;
 	}
 	int ret;
-
-	ret = readZipNode(root, streamPtr->infd,
-		streamPtr->blkSiz100k * 100000 + 1,
-		streamPtr->nodeCode
-		);
+	if (streamPtr->nodeCode != HBRID)
+	{
+		ret = readZipNode(root, streamPtr->infd,
+			streamPtr->blkSiz100k * BLOCKTIMES + 1,
+			streamPtr->nodeCode
+			);
+	}
+	else
+	{//DECODEHYBIRDCODE
+		ret= readZipNode_HB(root, streamPtr, streamPtr->blkSiz100k * BLOCKTIMES + 1);
+	}
 	if (ret<0)
 	{
 		return ret;

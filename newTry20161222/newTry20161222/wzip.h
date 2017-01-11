@@ -65,7 +65,9 @@ typedef enum TreeType{
 typedef enum NodeCodeType{
 	RLE_GAMA,
 	RLE_DELTA,
-	HBRID
+	HBRID,
+	PLUSONE,
+	GAMMAPLUSONE
 };
 
 //for huffman code
@@ -192,4 +194,10 @@ typedef struct Stream_t{
 	void(*myFree)(void *);
 
 }Stream_t;
+//º”ÀŸ±Ì
+extern u32 RLBITMAP[65535];
+extern u32 AllXRuns;
+extern  u16 GPO_BLOCKSIZE;
+extern uchar FILENAME[256];
+extern int BitsCodeType;
 #endif

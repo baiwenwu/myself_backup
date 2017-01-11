@@ -224,6 +224,147 @@ int compressWaveletTreeWithGamma(waveletTree wavTree)
 	return 0;
 
 }
+int compressWaveletTreeWithDelta(waveletTree wavTree)
+{
+	if (!wavTree)
+	{
+		return ERR_PARAMETER;
+	}
+
+	if (wavTree->leftChild == NULL && wavTree->righChild == NULL)
+	{
+		//leaf node
+		return 0;
+	}
+
+	int ret = runLengthDeltaCode(wavTree->bitBuff,
+		wavTree->bitLen,
+		wavTree->zipBuff
+		);
+	if (ret<0)
+	{
+		errProcess("runLengthDeltaCode", ret);
+		return ret;
+	}
+	wavTree->zipLen = ret;
+
+
+	if (wavTree->leftChild)
+	{
+		ret = compressWaveletTreeWithDelta(wavTree->leftChild);
+		if (ret<0)
+		{
+			errProcess("runLengthDeltaCode", ret);
+			return ret;
+		}
+	}
+
+	if (wavTree->righChild)
+	{
+		ret = compressWaveletTreeWithDelta(wavTree->righChild);
+		if (ret<0)
+		{
+			errProcess("runLengthDeltaCode", ret);
+			return ret;
+		}
+	}
+
+	return 0;
+
+}
+int compressWaveletTreeWithPlusOne(waveletTree wavTree)
+{
+	if (!wavTree)
+	{
+		return ERR_PARAMETER;
+	}
+
+	if (wavTree->leftChild == NULL && wavTree->righChild == NULL)
+	{
+		//leaf node
+		return 0;
+	}
+
+	int ret = runLengthPlusOneCode(wavTree->bitBuff,
+		wavTree->bitLen,
+		wavTree->zipBuff
+		);
+	if (ret<0)
+	{
+		errProcess("runLengthDeltaCode", ret);
+		return ret;
+	}
+	wavTree->zipLen = ret;
+
+
+	if (wavTree->leftChild)
+	{
+		ret = compressWaveletTreeWithPlusOne(wavTree->leftChild);
+		if (ret<0)
+		{
+			errProcess("runLengthDeltaCode", ret);
+			return ret;
+		}
+	}
+
+	if (wavTree->righChild)
+	{
+		ret = compressWaveletTreeWithPlusOne(wavTree->righChild);
+		if (ret<0)
+		{
+			errProcess("runLengthDeltaCode", ret);
+			return ret;
+		}
+	}
+
+	return 0;
+
+}
+int compressWaveletTreeWithHybird(waveletTree wavTree, Stream_t &stream)
+{
+	if (!wavTree)
+	{
+		return ERR_PARAMETER;
+	}
+
+	if (wavTree->leftChild == NULL && wavTree->righChild == NULL)
+	{
+		//leaf node
+		return 0;
+	}
+	int ret = runLengthHybirdCode(wavTree, stream.HBblockSize);
+	cout << "\t--------" << wavTree->zipLen<<"------------" << endl;
+	if (ret<0)
+	{
+		errProcess("runLengthHybirdCode", ret);
+		return ret;
+	}
+	//wavTree->zipLen = ret;
+
+
+	if (wavTree->leftChild)
+	{
+		ret = compressWaveletTreeWithHybird(wavTree->leftChild, stream);
+		if (ret<0)
+		{
+			errProcess("runLengthHybirdCode", ret);
+			return ret;
+		}
+	}
+
+	if (wavTree->righChild)
+	{
+		ret = compressWaveletTreeWithHybird(wavTree->righChild, stream);
+		if (ret<0)
+		{
+			errProcess("runLengthHybirdCode", ret);
+			return ret;
+		}
+	}
+
+	return 0;
+
+}
 int compressWaveletTree(waveletTree root, Stream_t &stream)
 {
 	int ret;
@@ -237,10 +378,14 @@ int compressWaveletTree(waveletTree root, Stream_t &stream)
 		ret = compressWaveletTreeWithGamma(root);
 		break;
 	case RLE_DELTA:
-		//ret = compressWaveletTreeWithDelta(root);
+		ret = compressWaveletTreeWithDelta(root);
 		break;
 	case HBRID:
-		//ret = compressWaveletTreeWithHybird(root);
+		ret = compressWaveletTreeWithHybird(root, stream);
+		break;
+	case PLUSONE:
+		ret = compressWaveletTreeWithPlusOne(root);
+		break;
 	default:
 		return ERR_PARAMETER;
 		break;

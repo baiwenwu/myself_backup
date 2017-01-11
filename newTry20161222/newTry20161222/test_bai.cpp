@@ -47,7 +47,7 @@ void showSAandBWT(char*T,int *SA,char*L, int len)
 	int slen = len;
 	cout << "-------------------------------------------------------------" << endl;
 	cout << "Ô´´®:" << T << endl;
-	for (int i = 0; i < slen; i++)
+	for (int i = 5; i < slen; i++)
 	{
 		cout << i << "\t";
 		circleOutStr(T, i, slen);
@@ -68,6 +68,7 @@ int BWT_tansform(char*T, int *SA, char*L, int len, int &bwt_i)
 	}
 	for (int i = 0; i < len; i++)
 	{
+		
 		if (SA[i] == 0)
 		{
 			bwt_i = i;
@@ -76,7 +77,7 @@ int BWT_tansform(char*T, int *SA, char*L, int len, int &bwt_i)
 		else
 		{
 			L[i] = T[SA[i] - 1];
-		}//L[i] = T[SA[i] == 0 ? len - 1 : SA[i] - 1];
+		}//L[i] = SA[i] ? T[SA[i] - 1] : T[len - 1];
 	}
 	return 0;
 }

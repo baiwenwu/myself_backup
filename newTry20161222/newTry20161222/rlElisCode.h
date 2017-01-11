@@ -1,6 +1,7 @@
 #ifndef _RLE_ELIS_CODE_H
 #define _RLE_ELIS_CODE_H
 #include "wzip.h"
+#include "wavelet.h"
 
 int getBitsNum(u32 number);
 
@@ -26,7 +27,17 @@ int runLengthDeltaCode(uchar *src, u32 bitsLen, uchar *dst);
 
 int runLengthDeltaDecode(uchar *src, u32 bitsLen, uchar *dst);
 
-//---------------------baiwenwu-c-------------
-//int runLengthHybirdCode(waveletTree wavTree, u32 HBblockSize);
+
+int plusOneCode(u32 num, uchar **buffPPtr, uchar *offset);
+
+int plusOneDecode(u32 *num, uchar **buffPPtr, uchar* offset);
+
+int runLengthPlusOneCode(uchar *src, u32 bitsLen, uchar *dst);
+
+int runLengthPlusOneDecode(uchar *src, u32 bitsLen, uchar *dst);
+
+
+int runLengthHybirdCode(waveletTree wavTree, u32 HBblockSize);
+int hybirdDecode(waveletTree root, u32 HBblockSize);
 
 #endif

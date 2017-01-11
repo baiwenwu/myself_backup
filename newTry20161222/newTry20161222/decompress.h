@@ -5,6 +5,7 @@
 #include"wavelet.h"
 #include"fileProcess.h"
 int streamBlkDecompressInit(Stream_t *streamPtr);
+int paraseHBblockSize(Stream_t *streamPtr);
 int paraseBlkCharSetMap(Stream_t *streamPtr);
 int paraseBlkCharCodeTable(Stream_t *streamPtr);
 int paraseBlkBwtIndex(Stream_t *streamPtr);

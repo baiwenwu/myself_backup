@@ -13,6 +13,9 @@ typedef struct waveletNode_t{
 
 	bitArray *head;//just for hybrid code
 
+	u16 HPheadLen;
+	uchar *HPhead;
+
 	uchar*	zipBuff;
 	u32		zipLen;// measure in bit
 
@@ -32,3 +35,4 @@ waveletTree createWaveletTree(uchar *buff, u32 len,
 int compressWaveletTree(waveletTree root, Stream_t &stream);
 int computeZipSizWaveletTree(waveletTree root);
 int destroyWaveletTree(waveletTree root);
+int compressWaveletTreeWithDelta(waveletTree wavTree);
