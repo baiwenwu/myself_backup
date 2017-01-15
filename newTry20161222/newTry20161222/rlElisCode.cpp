@@ -259,7 +259,6 @@ int runLengthGammaDecode(uchar *src, u32 bitsLen, uchar *dst)
 	{
 		return ERR_PARAMETER;
 	}
-	int i_bai = 0;
 	uchar srcOffset;
 	uchar dstOffset;
 
@@ -275,37 +274,8 @@ int runLengthGammaDecode(uchar *src, u32 bitsLen, uchar *dst)
 
 	u32 num;
 	u32 i;
-	while ((src - savedSrc) * 8 + srcOffset
-		<
-		bitsLen
- 		)
+	while ((src - savedSrc) * 8 + srcOffset<bitsLen	)
 	{
-		i_bai++;
-		if (i_bai > 9578)
-		{
-			int baiai = 0;
-		}
-		//cout << "baibaizai" << i_bai << endl;
-		if (i_bai % 10==0)
-		{
-			int xxxxx = 10;
-			//cout << "baibaizai" << i_bai << endl;
-			if (i_bai % 100 == 0)
-			{
-				//cout << "\t\tbaibaizai" << i_bai << endl;
-				int xxxxx = 100;
-				if (i_bai % 1000 == 0)
-				{
-					int xxxxx = 1000;
-					//cout << "\tbaibaizai" << i_bai << endl;
-					if (i_bai % 10000 == 0)
-					{
-						int xxxxx = 1000;
-						//cout <<"baibaizai"<< i_bai << endl;
-					}
-				}
-			}
-		}
 		elisGammaDecode(&num, &src, &srcOffset);
 		if (flag)
 		{

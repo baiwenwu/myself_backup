@@ -1,0 +1,671 @@
+#include"interface_g.h"
+int bitsNumTbls[256] = {
+	-1, 0, 1, 1, 2, 2, 2, 2,
+	3, 3, 3, 3, 3, 3, 3, 3,
+	4, 4, 4, 4, 4, 4, 4, 4,
+	4, 4, 4, 4, 4, 4, 4, 4,
+	5, 5, 5, 5, 5, 5, 5, 5,
+	5, 5, 5, 5, 5, 5, 5, 5,
+	5, 5, 5, 5, 5, 5, 5, 5,
+	5, 5, 5, 5, 5, 5, 5, 5,
+	6, 6, 6, 6, 6, 6, 6, 6,
+	6, 6, 6, 6, 6, 6, 6, 6,
+	6, 6, 6, 6, 6, 6, 6, 6,
+	6, 6, 6, 6, 6, 6, 6, 6,
+	6, 6, 6, 6, 6, 6, 6, 6,
+	6, 6, 6, 6, 6, 6, 6, 6,
+	6, 6, 6, 6, 6, 6, 6, 6,
+	6, 6, 6, 6, 6, 6, 6, 6,
+	7, 7, 7, 7, 7, 7, 7, 7,
+	7, 7, 7, 7, 7, 7, 7, 7,
+	7, 7, 7, 7, 7, 7, 7, 7,
+	7, 7, 7, 7, 7, 7, 7, 7,
+	7, 7, 7, 7, 7, 7, 7, 7,
+	7, 7, 7, 7, 7, 7, 7, 7,
+	7, 7, 7, 7, 7, 7, 7, 7,
+	7, 7, 7, 7, 7, 7, 7, 7,
+	7, 7, 7, 7, 7, 7, 7, 7,
+	7, 7, 7, 7, 7, 7, 7, 7,
+	7, 7, 7, 7, 7, 7, 7, 7,
+	7, 7, 7, 7, 7, 7, 7, 7,
+	7, 7, 7, 7, 7, 7, 7, 7,
+	7, 7, 7, 7, 7, 7, 7, 7,
+	7, 7, 7, 7, 7, 7, 7, 7,
+	7, 7, 7, 7, 7, 7, 7, 7,
+};
+int getBitsOfNum(unsigned x)
+{
+	if (x<256){
+		return bitsNumTbls[x];
+	}
+	int n = 1;
+	if (x == 0) return -1;
+	if ((x >> 16) == 0) { n = n + 16; x = x << 16; }
+	if ((x >> 24) == 0) { n = n + 8; x = x << 8; }
+	if ((x >> 28) == 0) { n = n + 4; x = x << 4; }
+	if ((x >> 30) == 0) { n = n + 2; x = x << 2; }
+	n = n - (x >> 31);
+	return 31 - n;
+}
+uchar getOneUchar(uchar *src, u32 index)
+{
+	u32 words = index >> 3;
+	uchar offset = index & 0x7;
+	uchar ch_t = src[words++] << offset;
+	ch_t += src[words] >> (8 - offset);
+	return ch_t;
+}
+void bitsCopy(uchar *dst, u32 dst_index, uchar * src, u32 src_index, u32 len)
+{
+	u32 numBits = 0;
+	u32 src_words = src_index >> 3;
+	uchar src_offset = src_index & 0x7;
+	u32 dst_words = dst_index >> 3;
+	uchar dst_offset = dst_index & 0x7;
+	uchar offset;
+	numBits += (8 - src_offset);
+	if (src_offset >= dst_offset)
+	{
+		uchar ch_t = src[src_words] << src_offset;
+		dst[dst_words] += (ch_t >> dst_offset);
+		offset = 8 - (src_offset - dst_offset);
+	}
+	else
+	{
+		uchar ch_t = src[src_words] << src_offset;
+		dst[dst_words++] += (ch_t >> dst_offset);
+		offset = dst_offset - src_offset;
+		dst[dst_words] += (ch_t << (8 - dst_offset));
+	}
+	if (offset == 8)
+	{
+		if (src_offset)
+		{
+			dst_words++;
+			src_words++;
+		}
+		for (u32 i = 0; i < (len >> 3); i++)
+			dst[dst_words++] = src[src_words++];
+		u32 word_t = (src_index + len) >> 3;
+		dst[word_t] = src[word_t];
+		src_offset = (src_index + len) & 0x7;
+		dst[word_t] = dst[word_t] >> (8 - src_offset);
+		dst[word_t] = dst[word_t] << (8 - src_offset);
+		return;
+	}
+	while (numBits < len)
+	{
+		uchar ch_t = src[++src_words];
+		dst[dst_words++] += (ch_t >> offset);
+		dst[dst_words] = (ch_t << (8 - offset));
+		numBits += 8;
+	}
+	dst_words = (dst_index + len) >> 3;
+	uchar dstoff_t = (dst_index + len) & 0x7;
+	uchar cd_ch_t = dst[dst_words] >> (8 - dstoff_t);
+	dst[dst_words++] = cd_ch_t << (8 - dstoff_t);
+	dst[dst_words] = 0;
+}
+//下面是bitsCopy的测试函数
+#if 0
+int main()
+{
+	int overNum = 500;
+	int num = 1000000;
+
+	uchar *src = new uchar[num];
+	uchar *dst = new uchar[num + overNum];
+	memset(dst, 0, num + overNum);
+	for (int i = 0; i < num; i++)
+	{
+		src[i] = rand() % 200 + 32;
+	}
+	int sumLen = 0;
+	srand(time(NULL));
+	u32 srcIndex = rand() % 8 + 1;
+	u32 dstIndex = rand() % 8 + 1;
+	u32 srcIndex_t = srcIndex;
+	u32 dstIndex_t = dstIndex;
+	while (sumLen < num * 8)
+	{
+		int len = rand() % 200 + 1;
+		if (len < 10)cout << "len is error!" << endl;
+		if (len + sumLen < num * 8)
+		{
+			bitsCopy(dst, dstIndex, src, srcIndex, len);
+		}
+		else
+		{
+			len = num * 8 - sumLen;
+			bitsCopy(dst, dstIndex, src, srcIndex, len);
+		}
+		srcIndex += len;
+		dstIndex += len;
+		sumLen += len;
+	}
+	//验证
+	for (int i = 0; i < num; i++)
+	{
+		uchar ch_ts = getOneUchar(src, srcIndex_t);
+		uchar ch_td = getOneUchar(dst, dstIndex_t);
+		if (ch_ts != ch_td)
+		{
+			cout << "copy failed!" << endl;
+		}
+		dstIndex_t += 8;
+		srcIndex_t += 8;
+	}
+	return 0;
+}
+#endif 
+#if 0
+int main()
+{
+	int overNum = 500;
+	int num = 100000;
+
+	uchar *src = new uchar[num];
+	uchar *dst = new uchar[num + overNum];
+	memset(dst, 0, num + overNum);
+	for (int i = 0; i < num; i++)
+	{
+		src[i] = rand() % 200 + 32;
+	}
+	int sumLen = 0;
+	u32 srcIndex = 0;
+	u32 dstIndex = 0;
+	while (sumLen < num * 8)
+	{
+		int len = rand() % 200 + 10;
+		if (len < 10)cout << "len is error!" << endl;
+		if (len + sumLen < num * 8)
+		{
+			copyBits_c(dst, dstIndex, src, srcIndex, len);
+		}
+		else
+		{
+			len = num * 8 - sumLen;
+			copyBits_c(dst, dstIndex, src, srcIndex, len);
+		}
+		srcIndex += len;
+		dstIndex += len;
+		sumLen += len;
+	}
+	//验证
+	for (int i = 0; i < num; i++)
+	{
+		if (src[i] != dst[i])
+		{
+			cout << "copy failed!" << endl;
+		}
+	}
+	return 0;
+}
+#endif 
+uchar getMark2(uchar **src, uchar *offset)
+{
+	uchar *ptr = *src;
+	uchar offset_t = *offset;
+	if ((offset_t + 2) & 0x8)
+	{//>8
+		u16 val_t = *(ptr++);
+		val_t = (val_t << 8) + *ptr;
+		val_t = val_t << offset_t;
+		*offset = (*offset + 2) & 0x7;
+		*src = ptr;
+		return (val_t >> (14)) & 0xff;
+	}
+	uchar ch_t = *ptr << offset_t;
+	*offset += 2;
+	*src = ptr;
+	return ch_t >> 6;
+}
+void writeMark2(uchar **src, uchar *offset, uchar val)
+{
+	uchar *ptr = *src;
+	uchar offset_t = *offset;
+	if ((offset_t + 2) & 0x8)
+	{
+		u16 val_t = *ptr;
+		val_t = (val_t << (offset_t - 6)) + val;
+		val_t = val_t << (14 - offset_t);
+		*(ptr++) = val_t >> 8;
+		*ptr = val_t & 0xff;
+		*offset = (*offset + 2) & 0x7;
+		*src = ptr;
+		return;
+	}
+	*ptr += val << (6 - offset_t);
+	*src = ptr;
+	*offset += 2;
+}
+uchar getMark(uchar **src, uchar *offset, uchar len)
+{
+	uchar *ptr = *src;
+	uchar offset_t = *offset;
+	if ((offset_t + len) & 0x8)
+	{//>8
+		u16 val_t = *(ptr++);
+		val_t = (val_t << 8) + *ptr;
+		val_t = val_t << offset_t;
+		*offset = (*offset + len) & 0x7;
+		*src = ptr;
+		return (val_t >> (16 - len)) & 0xff;
+	}
+	uchar ch_t = *ptr << offset_t;
+	*offset += len;
+	*src = ptr;
+	return ch_t >> (8 - len);
+}
+void writeMark(uchar **src, uchar *offset, uchar val, uchar len)
+{
+	uchar *ptr = *src;
+	uchar offset_t = *offset;
+	if ((offset_t + len) & 0x8)
+	{
+		u16 val_t = *ptr;
+		val_t = (val_t << (len + offset_t - 8)) + val;
+		val_t = val_t << (16 - len - offset_t);
+		*(ptr++) = val_t >> 8;
+		*ptr = val_t & 0xff;
+		*offset = (*offset + len) & 0x7;
+		*src = ptr;
+		return;
+	}
+	*ptr += val << (8 - offset_t - len);
+	*src = ptr;
+	*offset += len;
+}
+//下面是getMark与writeMark的测试函数
+#if 0
+int main()
+{
+
+	int num = 10000;
+	uchar *dst = new uchar[num];
+	memset(dst, 0, num);
+	uchar *head = new uchar[num * 5];
+	uchar *headLen = new uchar[num * 5];
+	u32 distLen = 0;
+
+	uchar offset = 3;
+	uchar*dst_t = dst;
+	uchar offset_t = offset;
+	int i = -1;
+	while (i < num)
+	{
+		head[++i] = rand() % 256 + 1;
+		//head[++i] = 5;
+		headLen[i] = getBitsOfNum(head[i]) + 1;
+		writeMark(&dst_t, &offset_t, head[i], headLen[i]);
+		distLen += headLen[i];
+	}
+	distLen = 0;
+	dst_t = dst;
+	offset_t = offset;
+	i = 0;
+	while (i <= num)
+	{
+		uchar ch_t = getMark(&dst_t, &offset_t, headLen[i]);
+		distLen += headLen[i];
+		if (ch_t != head[i++])
+		{
+			cout << "nmu=" << num << "  " << dst_t - dst << endl;
+			cout << "error!" << endl;
+		}
+	}
+	delete[] dst;
+	return 0;
+}
+#endif
+
+uchar getNextOneBit(uchar *src, uchar offset)
+{
+	return src[0] & (0x80 >> offset);
+}
+uchar getOneBits(uchar *src, u32 index)
+{
+	u32 words = index >> 3;
+	uchar offset = index & 0x7;
+	return src[words] & (128 >> offset);
+}
+//获取一个比特函数的测试程序
+#if 0
+int main()
+{
+	u32 words = 0;
+	uchar offset = 0;
+	int num = 100000;
+	uchar *src = new uchar[num];
+	int srcIndex = 0;
+	for (int i = 0; i < num; i++)
+	{
+		src[i] = rand() % 256;
+	}
+	for (; words < num;)
+	{
+		uchar ch_t1 = getNextOneBit(&src[words], offset);
+		uchar ch_t2 = getOneBits(src, srcIndex);
+		if (ch_t1 != ch_t2)
+		{
+			cout << "error!" << ch_t1 << " " << ch_t2 << endl;
+		}
+		offset++;
+		if (offset & 0x8)
+		{
+			offset = offset & 0x7;
+			words++;
+		}
+		srcIndex++;
+	}
+
+	return 0;
+}
+#endif 
+uchar acRunsTbl[256] = {//run length gamma
+	8,
+	7,
+	6, 6,
+	5, 5, 5, 5,
+	4, 4, 4, 4, 4, 4, 4, 4,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+	4, 4, 4, 4, 4, 4, 4, 4,
+	5, 5, 5, 5,
+	6, 6,
+	7,
+	8
+};
+uchar *EndWords = NULL;
+u32 getRuns(uchar **src, uchar *offset)
+{
+	uchar *ptr = *src;
+	uchar off_t = *offset;
+	uchar ch_t = *ptr << off_t;
+	//u32 runs = acRunsTbl[(*ptr)<<off_t];
+	u32 runs = acRunsTbl[ch_t];
+	if (runs == 0)
+	{
+		int xxx = 0;
+
+		runs = acRunsTbl[ch_t];
+	}
+	if (runs < 8 - off_t)
+	{
+		*offset += runs;
+		return runs;
+	}
+	runs = 8 - off_t;
+	while (++ptr != EndWords){
+		uchar ch_t1 = *ptr >> 7;
+		uchar ch_t2 = *(ptr - 1) & 1;
+		if ((*ptr >> 7) == ((*(ptr - 1)) & 1))
+		{
+			uchar runs_t = acRunsTbl[*ptr];
+			runs += runs_t;
+			if (runs_t < 8)
+			{
+				*src = ptr;
+				*offset = runs_t;
+				return runs;
+			}
+		}
+		else{
+			*src = ptr;
+			*offset = 0;
+			return runs;
+		}
+	}
+	*src = ptr;
+	return runs;
+}
+u32 runLengthCode(uchar *src, u32 bitsLen, uchar *dst, u16 *Runs)
+{
+	int k = 0;
+
+	int ret = 0;
+	if (!src || !bitsLen || !dst)
+	{
+		return -1;
+	}
+	uchar *savedDst = dst;
+
+	//get fist bit of src
+	*dst = *src;
+	uchar offset = 1;
+	bool flag;
+	if (*src &(1 << 7))
+	{
+		flag = true;
+	}
+	else
+	{
+		flag = false;
+	}
+
+	u32 i;
+	u32 period = 1;
+
+	bool flag1, flag2;
+	for (i = 1; i<bitsLen; i++)
+	{
+		flag1 = (src[i / 8] & (1 << (7 - i % 8)))
+			&&
+			flag
+			;
+		flag2 = (src[i / 8] & (1 << (7 - i % 8)))
+			||
+			flag
+			;
+		if (flag1 || !flag2)
+		{
+			period++;
+		}
+		else
+		{
+			Runs[k++] = period;
+			//return period;
+			if (ret<0)
+			{
+				return ret;
+			}
+			period = 1;//reset the length of run
+			flag = flag ? false : true;// switch the mark of runs
+		}
+
+	}
+
+	//return period;
+	Runs[k++] = period;
+	return (dst - savedDst) * 8 + offset;
+}
+//getRuns的测试程序，还有时间加速测试
+#if 0
+int main()
+{
+	//测试程序运行时间
+	double time = 0;
+	double counts = 0;
+	LARGE_INTEGER nFreq;
+	LARGE_INTEGER nBeginTime;
+	LARGE_INTEGER nEndTime;
+	QueryPerformanceFrequency(&nFreq);
+
+	u32 num = 100000;
+	u32 bitsLen = num * 8;
+	uchar *src = new uchar[num];
+	uchar srcOff = 0;
+	uchar *srcPtr_t = src;
+	uchar srcOff_t = srcOff;
+	EndWords = src + num;
+	for (int i = 0; i < num; i++)
+	{
+		int tmp1 = rand() % 2;
+		switch (tmp1)
+		{
+		case 0:
+			src[i] = rand() % 16;
+			break;
+		case 1:
+			src[i] = rand() % 16 + 240;
+			break;
+		default:
+			break;
+		}
+	}
+
+	u16 *Runs = new u16[num * 5];
+	for (int i = 0; i < num * 5; i++)
+	{
+		Runs[i] = 0;
+	}
+	int k = 0;
+	QueryPerformanceCounter(&nBeginTime);//开始计时  
+	while (srcPtr_t != EndWords)
+	{
+		//u32 getRuns(uchar **src, uchar *offset)
+		if (k >= 53323)
+		{
+			int xxx = 0;
+		}
+		Runs[k++] = getRuns(&srcPtr_t, &srcOff_t);
+	}
+	QueryPerformanceCounter(&nEndTime);//停止计时 
+	time = (double)(nEndTime.QuadPart - nBeginTime.QuadPart) / (double)nFreq.QuadPart;//计算程序执行时间单位为s 
+	cout << "程序执行时间：" << time * 1000 << "ms" << endl;
+	u16 *Runs1 = new u16[num * 5];
+	for (int i = 0; i < num * 5; i++)
+	{
+		Runs1[i] = 0;
+	}
+	uchar *dst = new uchar[10];
+	QueryPerformanceCounter(&nBeginTime);//开始计时 
+	runLengthCode(src, num * 8, dst, Runs1);
+	QueryPerformanceCounter(&nEndTime);//停止计时 
+	time = (double)(nEndTime.QuadPart - nBeginTime.QuadPart) / (double)nFreq.QuadPart;//计算程序执行时间单位为s 
+	cout << "程序执行时间：" << time * 1000 << "ms" << endl;
+	for (int i = 0; i < num * 5; i++)
+	{
+		if (Runs[i] != Runs1[i])
+		{
+			cout << i << "\t" << Runs[i] << "\t" << Runs1[i] << " Runs error!" << endl;
+		}
+	}
+	return 0;
+}
+#endif
+
+int DiffGPTbls[512] = {//gamma-plusOne
+	-1, -1, 1, -2, 0, 0, 0, -1, 1, 1, 1, 1, 1, 1, 1, -2,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+	3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+	2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1
+};
+int getSubGP(u32 x)
+{
+	if (x<512){
+		return DiffGPTbls[x];
+	}
+	else
+	{
+		int numGa = (getBitsOfNum(x) << 1) + 1;
+		int numDe = (getBitsOfNum(getBitsOfNum(x + 1)) << 1) + getBitsOfNum(x + 1) + 1;
+		return numGa - numDe;
+	}
+}
+//getSubGP的測試程序如下
+#if 0
+int main()
+{
+	for (u32 i = 1; i < 4096; i++)
+	{
+		int numGa = (getBitsOfNum(i) << 1) + 1;
+		int numDe = (getBitsOfNum(getBitsOfNum(i + 1)) << 1) + getBitsOfNum(i + 1) + 1;
+		if (numGa - numDe != getSubGP(i))
+		{
+			cout << "error!" << endl;
+		}
+	}
+	cout << endl;
+	double time = 0;
+	double counts = 0;
+	LARGE_INTEGER nFreq;
+	LARGE_INTEGER nBeginTime;
+	LARGE_INTEGER nEndTime;
+	int gapBits = 0;
+	QueryPerformanceFrequency(&nFreq);
+	int k;
+	QueryPerformanceCounter(&nBeginTime);//开始计时  
+	k = 0;
+	while (k < 20)
+	{
+		for (u32 i = 1; i < 1024; i++)
+		{
+			int numGa = (getBitsOfNum(i) << 1) + 1;
+			int numDe = (getBitsOfNum(getBitsOfNum(i + 1)) << 1) + getBitsOfNum(i + 1) + 1;
+			gapBits += numGa - numDe;
+		}
+		k++;
+
+	}
+	QueryPerformanceCounter(&nEndTime);//停止计时 
+	time = (double)(nEndTime.QuadPart - nBeginTime.QuadPart) / (double)nFreq.QuadPart;//计算程序执行时间单位为s 
+	cout << "程序执行时间：" << time * 1000 << "ms" << endl;
+	QueryPerformanceCounter(&nBeginTime);//开始计时  
+	k = 0;
+	while (k < 20)
+	{
+		for (u32 i = 1; i < 1024; i++)
+		{
+			gapBits += getSubGP(i);
+		}
+		k++;
+
+	}
+	QueryPerformanceCounter(&nEndTime);//停止计时 
+	time = (double)(nEndTime.QuadPart - nBeginTime.QuadPart) / (double)nFreq.QuadPart;//计算程序执行时间单位为s 
+	cout << "程序执行时间：" << time * 1000 << "ms" << endl;
+	return 0;
+}
+#endif 
+

@@ -579,6 +579,7 @@ int integDeltaCode(u32 *inte, int inteNum, u32 dstSize)
 	cout << "½âÂë³É¹¦" << endl;
 	return 0;
 }
+#if 0
 int main()
 {
 	int arange = 9; 
@@ -602,3 +603,4 @@ int main()
 	
 	return 0;
 }
+#endif

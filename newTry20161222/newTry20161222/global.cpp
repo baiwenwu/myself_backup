@@ -880,21 +880,21 @@ void decompressChildProcess(int i, Str_rt *str_rPtr)
 			streamBlkCompressCleanUp(str_rPtr);
 			exit(0);
 		}
-		cout << streamPtr->infd.tellg() << endl;
+		//cout << streamPtr->infd.tellg() << endl;
 		ret = paraseBlkCharCodeTable(streamPtr);
 		if (ret<0)
 		{
 			errProcess("praseBlkCharCodeTable", ret);
 			exit(0);
 		}
-		cout << streamPtr->infd.tellg() << endl;
+		//cout << streamPtr->infd.tellg() << endl;
 		ret = paraseBlkBwtIndex(streamPtr);
 		if (ret<0)
 		{
 			errProcess("paraseBlkBwtIndex", ret);
 			exit(0);
 		}
-		cout << streamPtr->infd.tellg() << endl;
+		//cout << streamPtr->infd.tellg() << endl;
 		str_rPtr->root = genWavtreeWithCodeTable(streamPtr->codeTable);
 		if (!str_rPtr->root)
 		{
