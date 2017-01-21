@@ -55,7 +55,10 @@ uchar getOneUchar(uchar *src, u32 index)
 	ch_t += src[words] >> (8 - offset);
 	return ch_t;
 }
-void bitsCopy(uchar *dst, u32 dst_index, uchar * src, u32 src_index, u32 len)
+
+
+
+void bitsCopyIndex(uchar *dst, u32 dst_index, uchar * src, u32 src_index, u32 len)
 {
 	u32 numBits = 0;
 	u32 src_words = src_index >> 3;
@@ -106,102 +109,317 @@ void bitsCopy(uchar *dst, u32 dst_index, uchar * src, u32 src_index, u32 len)
 	dst[dst_words++] = cd_ch_t << (8 - dstoff_t);
 	dst[dst_words] = 0;
 }
+void bitsCopy1(uchar *dst, uchar dstoff, uchar *src, uchar srcOff, u32 len)
+{
+	uchar *endDstWord = dst + ((len + dstoff) >> 3);
+	uchar dstoff_t = (len + dstoff) & 0x7;
+	if (srcOff == dstoff)
+	{
+		uchar ch_t = *(src++) << srcOff;
+		*(dst++) += (ch_t >> dstoff);
+		/*if (srcOff)
+		{
+		dst++;
+		src++;
+		}*/
+		while (dst < endDstWord)*(dst++) = *(src++);
+		*dst = *src >> (8 - dstoff_t);
+		*dst = *dst << (8 - dstoff_t);
+		return;
+	}
+	uchar offset;
+	uchar ch_t;
+	if (srcOff > dstoff)
+	{
+		ch_t = *src << srcOff;
+		*dst += (ch_t >> dstoff);
+		offset = 8 - (srcOff - dstoff);
+	}
+	else
+	{
+		ch_t = *src << srcOff;
+		*(dst++) += (ch_t >> dstoff);
+		offset = dstoff - srcOff;
+		*dst += (ch_t << (8 - dstoff));
+	}
+	while (dst < endDstWord)
+	{
+		uchar ch_t = *(++src);
+		*(dst++) += (ch_t >> offset);
+		*dst = (ch_t << (8 - offset));
+	}
+	ch_t = *(++src);
+	*dst += (ch_t >> offset);
+	*dst = *dst >> (8 - dstoff_t);
+	*dst = *dst << (8 - dstoff_t);
+}
+void bitsCopy(uchar **dst, uchar *dstOff, uchar **src, uchar *srcOff, u32 len)
+{
+	uchar *dstPtr = *dst;
+	uchar dstOff_t = *dstOff;
+	uchar *srcPtr = *src;
+	uchar srcOff_t = *srcOff;
+	uchar *endDstWord = dstPtr + ((len + dstOff_t) >> 3);
+	uchar dstoff_t = (len + dstOff_t) & 0x7;
+	*dst = endDstWord;
+	*dstOff = dstoff_t;
+	*src = srcPtr + ((len + srcOff_t) >> 3);
+	*srcOff = (len + srcOff_t) & 0x7;
+	if (srcOff_t == dstOff_t)
+	{
+		uchar ch_t = *srcPtr << srcOff_t;
+		*dstPtr += (ch_t >> dstOff_t);
+		/*if (srcOff_t){
+		dstPtr++;
+		srcPtr++;}*/
+		while (dstPtr < endDstWord)*(dstPtr++) = *(srcPtr++);
+		*dstPtr = *srcPtr >> (8 - dstoff_t);
+		*dstPtr = *dstPtr << (8 - dstoff_t);
+		return;
+	}
+	uchar offset;
+	uchar ch_t;
+	if (srcOff_t > dstOff_t)
+	{
+		ch_t = *srcPtr << srcOff_t;
+		*dstPtr += (ch_t >> dstOff_t);
+		offset = 8 - (srcOff_t - dstOff_t);
+	}
+	else
+	{
+		ch_t = *srcPtr << srcOff_t;
+		*(dstPtr++) += (ch_t >> dstOff_t);
+		offset = dstOff_t - srcOff_t;
+		*dstPtr += (ch_t << (8 - dstOff_t));
+	}
+	while (dstPtr < endDstWord)
+	{
+		uchar ch_t = *(++srcPtr);
+		*(dstPtr++) += (ch_t >> offset);
+		*dstPtr = (ch_t << (8 - offset));
+	}
+	ch_t = *(++srcPtr);
+	*dstPtr += (ch_t >> offset);
+	*dstPtr = *dstPtr >> (8 - dstoff_t);
+	*dstPtr = *dstPtr << (8 - dstoff_t);
+}
 //下面是bitsCopy的测试函数
 #if 0
-int main()
+int testBitsCopyIndex()
 {
 	int overNum = 500;
 	int num = 1000000;
-
-	uchar *src = new uchar[num];
 	uchar *dst = new uchar[num + overNum];
-	memset(dst, 0, num + overNum);
-	for (int i = 0; i < num; i++)
+	uchar *src = new uchar[num + 10];
+	int loopNum = 100;
+	while (loopNum-- > 0)
 	{
-		src[i] = rand() % 200 + 32;
-	}
-	int sumLen = 0;
-	srand(time(NULL));
-	u32 srcIndex = rand() % 8 + 1;
-	u32 dstIndex = rand() % 8 + 1;
-	u32 srcIndex_t = srcIndex;
-	u32 dstIndex_t = dstIndex;
-	while (sumLen < num * 8)
-	{
-		int len = rand() % 200 + 1;
-		if (len < 10)cout << "len is error!" << endl;
-		if (len + sumLen < num * 8)
+
+		memset(src, 0, num + 10);
+		memset(dst, 0, num + overNum);
+		for (int i = 0; i < num; i++)
 		{
-			bitsCopy(dst, dstIndex, src, srcIndex, len);
+			src[i] = rand() % 200 + 32;
 		}
-		else
+		int sumLen = 0;
+		srand(1484547112 + loopNum);
+		u32 srcIndex = rand() % 7 + 1;
+		u32 dstIndex = rand() % 7 + 1;
+		u32 srcIndex_t = srcIndex;
+		u32 dstIndex_t = dstIndex;
+		while (sumLen < num * 8)
 		{
-			len = num * 8 - sumLen;
-			bitsCopy(dst, dstIndex, src, srcIndex, len);
+			int len = rand() % 200 + 10;
+			if (len < 10)cout << "len is error!" << endl;
+			if (len + sumLen < num * 8)
+			{
+				bitsCopy(dst, dstIndex, src, srcIndex, len);
+			}
+			else
+			{
+				len = num * 8 - sumLen;
+				bitsCopy(dst, dstIndex, src, srcIndex, len);
+			}
+			srcIndex += len;
+			dstIndex += len;
+			sumLen += len;
 		}
-		srcIndex += len;
-		dstIndex += len;
-		sumLen += len;
-	}
-	//验证
-	for (int i = 0; i < num; i++)
-	{
-		uchar ch_ts = getOneUchar(src, srcIndex_t);
-		uchar ch_td = getOneUchar(dst, dstIndex_t);
-		if (ch_ts != ch_td)
+		//验证
+		for (int i = 0; i < num; i++)
 		{
-			cout << "copy failed!" << endl;
+			uchar ch_ts = getOneUchar(src, srcIndex_t);
+			uchar ch_td = getOneUchar(dst, dstIndex_t);
+			if (ch_ts != ch_td)
+			{
+				cout << "copy failed!" << endl;
+			}
+			dstIndex_t += 8;
+			srcIndex_t += 8;
 		}
-		dstIndex_t += 8;
-		srcIndex_t += 8;
 	}
 	return 0;
 }
-#endif 
-#if 0
-int main()
+int testCopyBits1()
 {
 	int overNum = 500;
-	int num = 100000;
-
-	uchar *src = new uchar[num];
+	int num = 1000000;
 	uchar *dst = new uchar[num + overNum];
-	memset(dst, 0, num + overNum);
-	for (int i = 0; i < num; i++)
+	uchar *src = new uchar[num + 10];
+	int loopNum = 100;
+	while (loopNum-- > 0)
 	{
-		src[i] = rand() % 200 + 32;
+
+		memset(src, 0, num + 10);
+		memset(dst, 0, num + overNum);
+		for (int i = 0; i < num; i++)
+		{
+			src[i] = rand() % 200 + 32;
+		}
+		int sumLen = 0;
+		srand(1484547112 + loopNum);
+		u32 srcIndex = rand() % 7 + 1;
+		u32 dstIndex = rand() % 7 + 1;
+		//u32 srcIndex = 0;
+		//u32 dstIndex = 0;
+		u32 srcIndex_t = srcIndex;
+		u32 dstIndex_t = dstIndex;
+
+
+		uchar *dst_t = dst;
+		uchar *src_t = src;
+		uchar dstOff = dstIndex & 0x7;
+		uchar srcOff = srcIndex & 0x7;
+		while (sumLen < num * 8)
+		{
+			int len = rand() % 200 + 10;
+			if (len < 10)cout << "len is error!" << endl;
+			if (len + sumLen < num * 8)
+			{
+				bitsCopy1(dst_t, dstOff, src_t, srcOff, len);
+			}
+			else
+			{
+				len = num * 8 - sumLen;
+				bitsCopy1(dst_t, dstOff, src_t, srcOff, len);
+			}
+			sumLen += len;
+			dst_t = dst_t + ((dstOff + len) >> 3);
+			dstOff = (dstOff + len) & 0x7;
+			src_t = src_t + ((srcOff + len) >> 3);
+			srcOff = (srcOff + len) & 0x7;
+		}
+		//验证
+		for (int i = 0; i < num; i++)
+		{
+			uchar ch_ts = getOneUchar(src, srcIndex_t);
+			uchar ch_td = getOneUchar(dst, dstIndex_t);
+			if (ch_ts != ch_td)
+			{
+				cout << "copy failed!" << endl;
+			}
+			dstIndex_t += 8;
+			srcIndex_t += 8;
+		}
 	}
-	int sumLen = 0;
-	u32 srcIndex = 0;
-	u32 dstIndex = 0;
-	while (sumLen < num * 8)
+	delete[] src;
+	delete[] dst;
+	return 0;
+}
+int testCopyBits()
+{
+	int overNum = 500;
+	int num = 1000000;
+	uchar *dst = new uchar[num + overNum];
+	uchar *src = new uchar[num + 10];
+	int loopNum = 100;
+	while (loopNum-- > 0)
 	{
-		int len = rand() % 200 + 10;
-		if (len < 10)cout << "len is error!" << endl;
-		if (len + sumLen < num * 8)
+
+		memset(src, 0, num + 10);
+		memset(dst, 0, num + overNum);
+		for (int i = 0; i < num; i++)
 		{
-			copyBits_c(dst, dstIndex, src, srcIndex, len);
+			src[i] = rand() % 200 + 32;
 		}
-		else
+		int sumLen = 0;
+		srand(1484547112 + loopNum);
+		u32 srcIndex = rand() % 7 + 1;
+		u32 dstIndex = rand() % 7 + 1;
+		u32 srcIndex_t = srcIndex;
+		u32 dstIndex_t = dstIndex;
+
+
+		uchar *dst_t = dst;
+		uchar *src_t = src;
+		uchar dstOff = dstIndex & 0x7;
+		uchar srcOff = srcIndex & 0x7;
+		while (sumLen < num * 8)
 		{
-			len = num * 8 - sumLen;
-			copyBits_c(dst, dstIndex, src, srcIndex, len);
+			int len = rand() % 200 + 10;
+			if (len < 10)cout << "len is error!" << endl;
+			if (len + sumLen < num * 8)
+			{
+				bitsCopy(&dst_t, &dstOff, &src_t, &srcOff, len);
+			}
+			else
+			{
+				len = num * 8 - sumLen;
+				bitsCopy(&dst_t, &dstOff, &src_t, &srcOff, len);
+			}
+			sumLen += len;
 		}
-		srcIndex += len;
-		dstIndex += len;
-		sumLen += len;
+		//验证
+		for (int i = 0; i < num; i++)
+		{
+			uchar ch_ts = getOneUchar(src, srcIndex_t);
+			uchar ch_td = getOneUchar(dst, dstIndex_t);
+			if (ch_ts != ch_td)
+			{
+				cout << "copy failed!" << endl;
+			}
+			dstIndex_t += 8;
+			srcIndex_t += 8;
+		}
 	}
-	//验证
-	for (int i = 0; i < num; i++)
-	{
-		if (src[i] != dst[i])
-		{
-			cout << "copy failed!" << endl;
-		}
-	}
+	delete[] src;
+	delete[] dst;
+	return 0;
+}
+int main()
+{
+	QueryPerformanceFrequency(&nFreq);
+	QueryPerformanceCounter(&nBeginTime);//开始计时 
+
+	testBitsCopyIndex();
+
+	QueryPerformanceCounter(&nEndTime);//停止计时 
+	time1 = (double)(nEndTime.QuadPart - nBeginTime.QuadPart) / (double)nFreq.QuadPart;//计算程序执行时间单位为s 
+	cout << "程序执行时间：" << time1 * 1000 << "ms" << endl;
+
+
+	QueryPerformanceCounter(&nBeginTime);//开始计时 
+
+	testCopyBits1();
+
+	QueryPerformanceCounter(&nEndTime);//停止计时 
+	time1 = (double)(nEndTime.QuadPart - nBeginTime.QuadPart) / (double)nFreq.QuadPart;//计算程序执行时间单位为s 
+	cout << "程序执行时间：" << time1 * 1000 << "ms" << endl;
+
+
+	QueryPerformanceCounter(&nBeginTime);//开始计时 
+
+	testCopyBits();
+
+	QueryPerformanceCounter(&nEndTime);//停止计时 
+	time1 = (double)(nEndTime.QuadPart - nBeginTime.QuadPart) / (double)nFreq.QuadPart;//计算程序执行时间单位为s 
+	cout << "程序执行时间：" << time1 * 1000 << "ms" << endl;
 	return 0;
 }
 #endif 
+
+
+
+
 uchar getMark2(uchar **src, uchar *offset)
 {
 	uchar *ptr = *src;
@@ -319,6 +537,9 @@ int main()
 }
 #endif
 
+
+
+
 uchar getNextOneBit(uchar *src, uchar offset)
 {
 	return src[0] & (0x80 >> offset);
@@ -362,6 +583,11 @@ int main()
 	return 0;
 }
 #endif 
+
+
+
+
+
 uchar acRunsTbl[256] = {//run length gamma
 	8,
 	7,
@@ -567,6 +793,9 @@ int main()
 }
 #endif
 
+
+
+
 int DiffGPTbls[512] = {//gamma-plusOne
 	-1, -1, 1, -2, 0, 0, 0, -1, 1, 1, 1, 1, 1, 1, 1, -2,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1,
@@ -668,4 +897,143 @@ int main()
 	return 0;
 }
 #endif 
+void Append_g(u32 runs, uchar **buffPPtr, uchar *offset)
+{//runlength gamma
+	uchar *ptr = *buffPPtr;
+	uchar *ptrs = ptr;
+	uchar off = *offset;
+	uchar bitsLen = (getBitsOfNum(runs) << 1) + 1;
+	ptr += (off + bitsLen) >> 3;
+	*buffPPtr = ptr;
+	off = (off + bitsLen) & 0x7;
+	*offset = off;
+	runs = runs << (8 - off);
+	*ptr += runs & 0xff;
+	if (ptr == ptrs)
+		return;
+	*(--ptr) += (runs >> 8) & 0xff;
+	if (ptr == ptrs)
+		return;
+	*(--ptr) += (runs >> 16) & 0xff;
+	if (ptr == ptrs)
+		return;
+	*(--ptr) += (runs >> 24) & 0xff;
+	if (ptr == ptrs)
+		return;
+}
+int elisGammaCode1(u32 num, uchar **buffPPtr, uchar *offset)
+{
+	int ret;
+	//if (!num || !buffPPtr || !offset)
+	//{
+	//	return -1;
+	//}
+	uchar *ptr = *buffPPtr;
+	uchar off = *offset;
+
+	u32 bitsLen = getBitsOfNum(num);
+	if (bitsLen == -1)
+	{
+		return -1;
+	}
+
+	u32 i;
+
+	//can't mark off this segments
+	for (i = 0; i<bitsLen; i++)
+	{
+		*ptr &= ~(1 << (7 - off));
+		off++;
+		if (off == 8)
+		{
+			off = 0;
+			ptr++;
+		}
+	}
+	*ptr |= 1 << (7 - off);
+	if (++off == 8)
+	{
+		off = 0;
+		ptr++;
+	}
+
+	for (i = 1; i <= bitsLen; i++)
+	{
+		if (num & (1 << (bitsLen - i)))
+		{
+			*ptr |= (1 << (7 - off));
+		}
+		else
+		{
+			*ptr &= ~(1 << (7 - off));
+		}
+
+		if (++off == 8)
+		{
+			off = 0;
+			ptr++;
+		}
+	}
+	*buffPPtr = ptr;
+	*offset = off;
+	return 0;
+
+}
+//写入Runs的测试程序
+#if 0
+int main()
+{
+	int Nums = 1000000;
+	int Rnums = Nums >> 1;
+	u32 *Runs = new u32[Rnums];
+	//存储结构
+	uchar *dst = new uchar[Nums];
+	memset(dst, 0, Nums);
+	uchar *dst_t = dst;
+	uchar dOff = 0;
+
+	uchar *dst1 = new uchar[Nums];
+	memset(dst1, 0, Nums);
+	uchar *dst1_t = dst1;
+	uchar d1Off = 0;
+	for (int i = 0; i < Rnums; i++)
+	{
+		Runs[i] = rand() % 256 + 1;
+	}
+	//存储1
+	/*for (int i = 0; i < Rnums; i++)
+	{
+	elisGammaCode1(Runs[i], &dst_t, &dOff);
+	Append_g(Runs[i], &dst1_t, &d1Off);
+	}*/
+	QueryPerformanceFrequency(&nFreq);
+	QueryPerformanceCounter(&nBeginTime);//开始计时 
+	for (int i = 0; i < Rnums; i++)
+	{
+		elisGammaCode1(Runs[i], &dst_t, &dOff);
+	}
+	QueryPerformanceCounter(&nEndTime);//停止计时 
+	time1 = (double)(nEndTime.QuadPart - nBeginTime.QuadPart) / (double)nFreq.QuadPart;//计算程序执行时间单位为s 
+	cout << "程序执行时间：" << time1 * 1000 << "ms" << endl;
+
+	QueryPerformanceCounter(&nBeginTime);//开始计时 
+	for (int i = 0; i < Rnums; i++)
+	{
+		Append_g(Runs[i], &dst1_t, &d1Off);
+	}
+	QueryPerformanceCounter(&nEndTime);//停止计时 
+	time1 = (double)(nEndTime.QuadPart - nBeginTime.QuadPart) / (double)nFreq.QuadPart;//计算程序执行时间单位为s 
+	cout << "程序执行时间：" << time1 * 1000 << "ms" << endl;
+	int k = 0;
+	while (dst[k] == dst1[k] && k < Nums)
+	{
+		k++;
+	}
+	cout << k << endl;
+	delete[]Runs;
+	delete[]dst;
+	delete[]dst1;
+	return 0;
+}
+#endif
 
