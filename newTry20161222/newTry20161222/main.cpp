@@ -17,11 +17,11 @@ int main()
 		case 3:
 			BitsCodeType = 4;
 			cout << "PLUSONE Ñ¹Ëõ£º" << endl;
-			break;*/
+			break;
 		case 4:
 			BitsCodeType = 3;
 			cout << "»ìºÏ±àÂë Ñ¹Ëõ£º" << endl;
-			break;
+			break;*/
 		default:
 			break;
 		}

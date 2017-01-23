@@ -2,13 +2,15 @@
 #define _INTERFACE_G_H_
 #include"type.h"
 uchar getOneUchar(uchar *src, u32 index);
-void bitsCopy(uchar *dst, u32 dst_index, uchar * src,
-		u32 src_index, u32 len);
 uchar getNextOneBit(uchar *src, uchar offset);
 uchar getMark2(uchar **src, uchar *offset);
 void writeMark2(uchar **src, uchar *offset, uchar val);
 u32 getRuns(uchar **src, uchar *offset);
+void writeRuns(uchar **src, uchar *offset, u32 runs);
 int getBitsOfNum(unsigned x);//求log(x)向下取整
+void Append_g(u32 runs, uchar **buffPPtr, uchar *offset);
+void bitsCopy(uchar **dst, uchar *dstOff, uchar **src,
+	uchar *srcOff, u32 len);//bits copy
 int getSubGP(u32 x);
 extern uchar *EndWords;
 #endif

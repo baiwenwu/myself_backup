@@ -51,8 +51,26 @@ int getBitsNum(unsigned x)
 	n = n - (x >> 31);
 	return 31 - n;
 }
+static int tmp01_t = 0;
 int runLengthGammaCode(uchar *src, u32 bitsLen, uchar *dst)
 {
+	
+	if (!tmp01_t)
+	{
+		ofstream out01;
+		out01.open("dna01_t", ios::out | ios::binary);
+		if (!out01.is_open())
+		{
+			cout << "dna01_t  open error!" << endl;
+		}
+		u32 nbytes01 = bitsLen / 8;
+		out01.write((char*)&nbytes01, sizeof(u32));
+		out01.write((char*)src, nbytes01);
+		tmp01_t++;
+		out01.close();
+	}
+
+
 	int ret;
 	if (!src || !bitsLen || !dst)
 	{

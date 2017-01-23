@@ -332,7 +332,8 @@ int compressWaveletTreeWithHybird(waveletTree wavTree, Stream_t &stream)
 		//leaf node
 		return 0;
 	}
-	int ret = runLengthHybirdCode(wavTree, stream.HBblockSize);
+	int ret = 0;
+	//int ret = runLengthHybirdCode(wavTree, stream.HBblockSize);
 	cout << "\t--------" << wavTree->zipLen<<"------------" << endl;
 	if (ret<0)
 	{

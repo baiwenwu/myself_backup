@@ -1,5 +1,5 @@
 #include"BitsCopyFunc.h"
-
+#if 0
 void bitsCopyIndex(uchar *dst, u32 dst_index, uchar * src, u32 src_index, u32 len)
 {
 	u32 numBits = 0;
@@ -146,7 +146,7 @@ void bitsCopy(uchar **dst, uchar *dstOff, uchar **src, uchar *srcOff, u32 len)
 	*dstPtr = *dstPtr >> (8 - dstoff_t);
 	*dstPtr = *dstPtr << (8 - dstoff_t);
 }
-#if 1
+
 
 #endif 
 #if 0

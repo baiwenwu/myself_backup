@@ -639,7 +639,7 @@ int readZipNode_HB(waveletTree root, Stream_t *streamPtr,
 
 	//decompress HYBIRD zipBuff to bitBuff
 	//ret = runLengthGammaDecode(root->zipBuff,root->zipLen,root->bitBuff	);
-	ret = hybirdDecode(root, streamPtr->HBblockSize);
+	//ret = hybirdDecode(root, streamPtr->HBblockSize);
 	if (ret<0)
 	{
 		errProcess("DeHyBirdCode error!", ret);

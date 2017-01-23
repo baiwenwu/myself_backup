@@ -717,6 +717,22 @@ u32 runLengthCode(uchar *src, u32 bitsLen, uchar *dst, u16 *Runs)
 	Runs[k++] = period;
 	return (dst - savedDst) * 8 + offset;
 }
+void writeRuns(uchar **src, uchar *offset, u32 runs)
+{
+	//uchar mask = 255;
+	uchar *ptr = *src;
+	uchar off = *offset;
+	uchar *src_t = ptr + ((off + runs) >> 3);
+	uchar src_off = (off + runs) & 0x7;
+	*src = src_t;
+	*offset = src_off;
+	*ptr += 0xff >> off;
+	while (ptr < src_t)
+	{
+		*(++ptr) = 0xff;
+	}
+	*ptr = *ptr&(0xff << (8 - src_off));
+}
 //getRuns的测试程序，还有时间加速测试
 #if 0
 int main()
@@ -729,13 +745,14 @@ int main()
 	LARGE_INTEGER nEndTime;
 	QueryPerformanceFrequency(&nFreq);
 
-	u32 num = 100000;
+	u32 num = 1000000;
 	u32 bitsLen = num * 8;
 	uchar *src = new uchar[num];
 	uchar srcOff = 0;
 	uchar *srcPtr_t = src;
 	uchar srcOff_t = srcOff;
 	EndWords = src + num;
+	srand(num);
 	for (int i = 0; i < num; i++)
 	{
 		int tmp1 = rand() % 2;
@@ -789,6 +806,37 @@ int main()
 			cout << i << "\t" << Runs[i] << "\t" << Runs1[i] << " Runs error!" << endl;
 		}
 	}
+
+	uchar *runsTsrc = new uchar[num];
+	uchar *rTs_t = runsTsrc;
+	uchar  rTr_off = 0;
+	memset(runsTsrc, 0, num);
+	bool flag = src[0] & 128;
+	for (int i = 0; i < num * 5; i++)
+	{
+		if (Runs[i] < 1)
+		{
+			continue;
+		}
+		if (flag)
+		{
+			writeRuns(&runsTsrc, &rTr_off, Runs[i]);
+			flag = !flag;
+			continue;
+		}
+		runsTsrc += (rTr_off + Runs[i]) >> 3;
+		rTr_off = (rTr_off + Runs[i]) & 0x7;
+		flag = !flag;
+	}
+
+	for (int i = 0; i < num; i++)
+	{
+		if (src[i] != rTs_t[i])
+		{
+			cout << (u32)src[i] << " " << (int)rTs_t[i] << "\terror!" << endl;
+		}
+	}
+
 	return 0;
 }
 #endif
