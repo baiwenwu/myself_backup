@@ -298,6 +298,143 @@ int decodeGammaBlock(bool *flag, uchar **src, uchar *srcOff, uchar **dst, uchar 
 	}
 	return 0;
 }
+#if 0
+void Append_g(u32 runs, uchar **buffPPtr, uchar *offset)
+{//runlength gamma
+	uchar *ptr = *buffPPtr;
+	uchar *ptrs = ptr;
+	uchar off = *offset;
+	uchar bitsLen = (getBitsOfNum(runs) << 1) + 1;
+	ptr += (off + bitsLen) >> 3;
+	*buffPPtr = ptr;
+	off = (off + bitsLen) & 0x7;
+	*offset = off;
+	runs = runs << (8 - off);
+	*ptr += runs & 0xff;
+	if (ptr == ptrs)
+		return;
+	*(--ptr) += (runs >> 8) & 0xff;
+	if (ptr == ptrs)
+		return;
+	*(--ptr) += (runs >> 16) & 0xff;
+	if (ptr == ptrs)
+		return;
+	*(--ptr) += (runs >> 24) & 0xff;
+	if (ptr == ptrs)
+		return;
+}
+int elisGammaCode1(u32 num, uchar **buffPPtr, uchar *offset)
+{
+	int ret;
+	//if (!num || !buffPPtr || !offset)
+	//{
+	//	return -1;
+	//}
+	uchar *ptr = *buffPPtr;
+	uchar off = *offset;
+
+	u32 bitsLen = getBitsOfNum(num);
+	if (bitsLen == -1)
+	{
+		return -1;
+	}
+
+	u32 i;
+
+	//can't mark off this segments
+	for (i = 0; i<bitsLen; i++)
+	{
+		*ptr &= ~(1 << (7 - off));
+		off++;
+		if (off == 8)
+		{
+			off = 0;
+			ptr++;
+		}
+	}
+	*ptr |= 1 << (7 - off);
+	if (++off == 8)
+	{
+		off = 0;
+		ptr++;
+	}
+
+	for (i = 1; i <= bitsLen; i++)
+	{
+		if (num & (1 << (bitsLen - i)))
+		{
+			*ptr |= (1 << (7 - off));
+		}
+		else
+		{
+			*ptr &= ~(1 << (7 - off));
+		}
+
+		if (++off == 8)
+		{
+			off = 0;
+			ptr++;
+		}
+	}
+	*buffPPtr = ptr;
+	*offset = off;
+	return 0;
+
+}
+//Ð´ÈëRunsµÄ²âÊÔ³ÌÐò
+
+int main()
+{
+	int Nums = 1000;
+	int Rnums = Nums >> 1;
+	u32 *Runs = new u32[Rnums];
+	//´æ´¢½á¹¹
+	uchar *dst = new uchar[Nums];
+	memset(dst, 0, Nums);
+	uchar *dst_t = dst;
+	uchar dOff = 0;
+
+	uchar *dst1 = new uchar[Nums];
+	memset(dst1, 0, Nums);
+	uchar *dst1_t = dst1;
+	uchar d1Off = 0;
+
+	int sumRuns = 0;
+	for (int i = 0; i < Rnums; i++)
+	{
+		Runs[i] = rand() % 34 + 1;
+		sumRuns += Runs[i];
+	}
+	
+	//´æ´¢1
+	/*for (int i = 0; i < Rnums; i++)
+	{
+	elisGammaCode1(Runs[i], &dst_t, &dOff);
+	Append_g(Runs[i], &dst1_t, &d1Off);
+	}*/
+	
+	for (int i = 0; i < Rnums; i++)
+	{
+		elisGammaCode1(Runs[i], &dst_t, &dOff);
+	}
+
+	for (int i = 0; i < Rnums; i++)
+	{
+		Append_g(Runs[i], &dst1_t, &d1Off);
+	}
+	int k = 0;
+	while (dst[k] == dst1[k] && k < Nums)
+	{
+		k++;
+	}
+	//½âÑ¹²âÊÔ
+
+	delete[]Runs;
+	delete[]dst;
+	delete[]dst1;
+	return 0;
+}
+#endif
 int deGppHybirdCode(uchar *src, u32 bitsLen, uchar *dst, u16 HBblSize)
 {//src is compressed string £¬dst is decompressed string
 	if (!src || !bitsLen || !dst)
@@ -344,6 +481,7 @@ int deGppHybirdCode(uchar *src, u32 bitsLen, uchar *dst, u16 HBblSize)
 			}
 			break;
 		case 2://decode gamma
+			decodeGammaBlock(&flag, &src, &srcOffset, &dst, &dstOffset, HBblSize);
 			break;
 		case 3:
 			break;
@@ -353,11 +491,9 @@ int deGppHybirdCode(uchar *src, u32 bitsLen, uchar *dst, u16 HBblSize)
 		}
 
 	}
-
-
 	return (dst - savedDst) * 8 + dstOffset;
 }
-#if 0 
+#if 1 
 void writeOneBits(uchar *src, u32 index)
 {
 	u32 swords = index >> 3;

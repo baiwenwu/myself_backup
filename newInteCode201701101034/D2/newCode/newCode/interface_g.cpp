@@ -1,4 +1,5 @@
 #include"interface_g.h"
+#include<fstream>
 int bitsNumTbls[256] = {
 	-1, 0, 1, 1, 2, 2, 2, 2,
 	3, 3, 3, 3, 3, 3, 3, 3,
@@ -167,11 +168,8 @@ void bitsCopy(uchar **dst, uchar *dstOff, uchar **src, uchar *srcOff, u32 len)
 	*srcOff = (len + srcOff_t) & 0x7;
 	if (srcOff_t == dstOff_t)
 	{
-		uchar ch_t = *srcPtr << srcOff_t;
-		*dstPtr += (ch_t >> dstOff_t);
-		/*if (srcOff_t){
-		dstPtr++;
-		srcPtr++;}*/
+		uchar ch_t = *(srcPtr++) << srcOff_t;
+		*(dstPtr++) += (ch_t >> dstOff_t);
 		while (dstPtr < endDstWord)*(dstPtr++) = *(srcPtr++);
 		*dstPtr = *srcPtr >> (8 - dstoff_t);
 		*dstPtr = *dstPtr << (8 - dstoff_t);
@@ -615,6 +613,7 @@ uchar acRunsTbl[256] = {//run length gamma
 	8
 };
 uchar *EndWords = NULL;
+uchar EndOff=0;
 u32 getRuns(uchar **src, uchar *offset)
 {
 	uchar *ptr = *src;
@@ -634,7 +633,7 @@ u32 getRuns(uchar **src, uchar *offset)
 		return runs;
 	}
 	runs = 8 - off_t;
-	while (++ptr != EndWords){
+	while (++ptr < EndWords){
 		uchar ch_t1 = *ptr >> 7;
 		uchar ch_t2 = *(ptr - 1) & 1;
 		if ((*ptr >> 7) == ((*(ptr - 1)) & 1))
@@ -654,8 +653,18 @@ u32 getRuns(uchar **src, uchar *offset)
 			return runs;
 		}
 	}
-	*src = ptr;
-	return runs;
+	
+	runs = (EndWords - *src) * 8 + EndOff - *offset;
+	*src = EndWords;
+	*offset = EndOff;
+	/*if((*(ptr-1))&(128>>EndOff))
+	{
+		*offset=(runs+off_t)&0x7;
+		return runs;
+	}
+	runs=runs-(8-EndOff);
+	*offset=(runs+off_t)&0x7;*/
+	return EndOff?runs-8:runs;
 }
 u32 runLengthCode(uchar *src, u32 bitsLen, uchar *dst, u16 *Runs)
 {
@@ -945,7 +954,7 @@ int main()
 	return 0;
 }
 #endif 
-#if 0
+
 void Append_g(u32 runs, uchar **buffPPtr, uchar *offset)
 {//runlength gamma
 	uchar *ptr = *buffPPtr;
@@ -1028,6 +1037,7 @@ int elisGammaCode1(u32 num, uchar **buffPPtr, uchar *offset)
 	return 0;
 
 }
+#if 0
 //Ð´ÈëRunsµÄ²âÊÔ³ÌÐò
 
 int main()
@@ -1085,4 +1095,188 @@ int main()
 	return 0;
 }
 #endif
+#if 0
+void writeOneBits(uchar *src, u32 index)
+{
+	u32 swords = index >> 3;
+	u32 offset = index & 0x7;
+	src[swords] += 128 >> offset;
+}
+int creatSrc(uchar *src, u32& bitsLen)
+{
+	if (!src)
+	{
+		cout << "the parameter£¨src£© is error!" << endl;
+		return -1;
+	}
+	string str="000000000000110011010000000111111111100000000000000000000000000000000000";
+	//cin >> str;
+	int i = 0;
+	while (bitsLen<str.length())
+	{
+		if (str[bitsLen] != '0')
+		{
+			writeOneBits(src, bitsLen);
+		}
+		bitsLen++;
+	}
+	return 0;
+}
+#endif
+
+u16 plusOlen[512] = {
+	4864, 4352, 3840, 3840, 3328, 3328, 3328, 3328,
+	2816, 2816, 2816, 2816, 2816, 2816, 2816, 2816,
+	2320, 2321, 2322, 2323, 2324, 2325, 2326, 2327,
+	2328, 2329, 2330, 2331, 2332, 2333, 2334, 2335,
+	1800, 1800, 1800, 1800, 1801, 1801, 1801, 1801,
+	1802, 1802, 1802, 1802, 1803, 1803, 1803, 1803,
+	1804, 1804, 1804, 1804, 1805, 1805, 1805, 1805,
+	1806, 1806, 1806, 1806, 1807, 1807, 1807, 1807,
+	2352, 2353, 2354, 2355, 2356, 2357, 2358, 2359,
+	2360, 2361, 2362, 2363, 2364, 2365, 2366, 2367,
+	1285, 1285, 1285, 1285, 1285, 1285, 1285, 1285,
+	1285, 1285, 1285, 1285, 1285, 1285, 1285, 1285,
+	1286, 1286, 1286, 1286, 1286, 1286, 1286, 1286,
+	1286, 1286, 1286, 1286, 1286, 1286, 1286, 1286,
+	1287, 1287, 1287, 1287, 1287, 1287, 1287, 1287,
+	1287, 1287, 1287, 1287, 1287, 1287, 1287, 1287,
+	1316, 1316, 1316, 1316, 1316, 1316, 1316, 1316,
+	1316, 1316, 1316, 1316, 1316, 1316, 1316, 1316,
+	1317, 1317, 1317, 1317, 1317, 1317, 1317, 1317,
+	1317, 1317, 1317, 1317, 1317, 1317, 1317, 1317,
+	1318, 1318, 1318, 1318, 1318, 1318, 1318, 1318,
+	1318, 1318, 1318, 1318, 1318, 1318, 1318, 1318,
+	1319, 1319, 1319, 1319, 1319, 1319, 1319, 1319,
+	1319, 1319, 1319, 1319, 1319, 1319, 1319, 1319,
+	1576, 1576, 1576, 1576, 1576, 1576, 1576, 1576,
+	1577, 1577, 1577, 1577, 1577, 1577, 1577, 1577,
+	1578, 1578, 1578, 1578, 1578, 1578, 1578, 1578,
+	1579, 1579, 1579, 1579, 1579, 1579, 1579, 1579,
+	1580, 1580, 1580, 1580, 1580, 1580, 1580, 1580,
+	1581, 1581, 1581, 1581, 1581, 1581, 1581, 1581,
+	1582, 1582, 1582, 1582, 1582, 1582, 1582, 1582,
+	1583, 1583, 1583, 1583, 1583, 1583, 1583, 1583,
+	546, 546, 546, 546, 546, 546, 546, 546,
+	546, 546, 546, 546, 546, 546, 546, 546,
+	546, 546, 546, 546, 546, 546, 546, 546,
+	546, 546, 546, 546, 546, 546, 546, 546,
+	546, 546, 546, 546, 546, 546, 546, 546,
+	546, 546, 546, 546, 546, 546, 546, 546,
+	546, 546, 546, 546, 546, 546, 546, 546,
+	546, 546, 546, 546, 546, 546, 546, 546,
+	546, 546, 546, 546, 546, 546, 546, 546,
+	546, 546, 546, 546, 546, 546, 546, 546,
+	546, 546, 546, 546, 546, 546, 546, 546,
+	546, 546, 546, 546, 546, 546, 546, 546,
+	546, 546, 546, 546, 546, 546, 546, 546,
+	546, 546, 546, 546, 546, 546, 546, 546,
+	546, 546, 546, 546, 546, 546, 546, 546,
+	546, 546, 546, 546, 546, 546, 546, 546,
+	547, 547, 547, 547, 547, 547, 547, 547,
+	547, 547, 547, 547, 547, 547, 547, 547,
+	547, 547, 547, 547, 547, 547, 547, 547,
+	547, 547, 547, 547, 547, 547, 547, 547,
+	547, 547, 547, 547, 547, 547, 547, 547,
+	547, 547, 547, 547, 547, 547, 547, 547,
+	547, 547, 547, 547, 547, 547, 547, 547,
+	547, 547, 547, 547, 547, 547, 547, 547,
+	547, 547, 547, 547, 547, 547, 547, 547,
+	547, 547, 547, 547, 547, 547, 547, 547,
+	547, 547, 547, 547, 547, 547, 547, 547,
+	547, 547, 547, 547, 547, 547, 547, 547,
+	547, 547, 547, 547, 547, 547, 547, 547,
+	547, 547, 547, 547, 547, 547, 547, 547,
+	547, 547, 547, 547, 547, 547, 547, 547,
+	547, 547, 547, 547, 547, 547, 547, 547
+};
+#if 0
+void printUchar_t(uchar x)
+{
+	uchar andx = 128;
+	while (andx)
+	{
+		if (andx&x)
+			cout << "1";
+		else
+			cout << "0";
+		andx = andx >> 1;
+	}
+	cout << " ";
+}
+uchar findZeroU16_9(u16 x)
+{
+	u16 andx = 256;
+	u16 runs = 0;
+	while (andx)
+	{
+		if (andx&x)
+			break;
+		else
+			runs++;
+		andx = andx >> 1;
+	}
+	return runs;
+}
+int main()
+{
+	u16 R1, R2;
+	u16 *tabl_t = new u16[512];
+	memset(tabl_t, 0, 512*sizeof(u16));
+	for(u16 i=0;i<512;i++)
+	{
+		R1 = R2 = 0;
+		u16 zeros = findZeroU16_9(i);
+		u16 gLen = zeros * 2 + 1;
+		u16 gamma = i >> (9 - gLen);
+		u16 plusOne = 0;
+		R1 = gamma;
+		R2 = gLen;
+		if (gamma < 5&&gamma>0)
+		{
+			plusOne = 1 << gamma;
+			u16 tmp = i << (7 + gLen);
+			plusOne += tmp >> (16 - gamma);
+			R1 = plusOne + 32;
+			R2 += gamma;
+		}
+		tabl_t[i] = R2 << 8;
+		tabl_t[i] += R1;
+		cout << i << "\t";
+		printUchar_t(i>>8);
+		printUchar_t(i&0xff);
+		cout<<(int)findZeroU16_9(i)<<" "<<gamma<<"  "<<plusOne<<endl;
+	}
+	
+	ofstream out;
+	out.open("plusOne.txt", ios::out);
+	if (!out.is_open())
+	{
+		cout << "open file failed!" << endl;
+	}
+
+	for (u16 i = 0; i <512; i++)
+	{
+		uchar R1, R2;
+		R1 = tabl_t[i] & 0xff;
+		R2 = tabl_t[i] >> 8;
+		cout << i << "\t";
+		printUchar_t(i >> 8);
+		printUchar_t(i & 0xff);
+		if (i % 8 == 0)
+		{
+			cout << endl;
+			out << "\n";
+		}
+		int tmp = tabl_t[i];
+		out << tmp << ",";
+		cout << "\t"<<tabl_t[i]<<"\t" <<(int)R1 << "\t" <<(int)R2 << endl;
+	}
+	out.close();
+	return 0;
+}
+
+#endif
+
+
 
