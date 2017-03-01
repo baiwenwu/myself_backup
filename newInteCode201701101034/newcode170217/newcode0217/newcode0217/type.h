@@ -6,7 +6,6 @@
 #include<stdio.h>
 #include<time.h>
 #include<windows.h>
-#include<fstream>
 using namespace std;
 typedef unsigned char uchar;
 typedef unsigned short u16;

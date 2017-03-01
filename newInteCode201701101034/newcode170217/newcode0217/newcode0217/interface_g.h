@@ -16,10 +16,4 @@ int creatSrc(uchar *src, u32& bitsLen);
 extern uchar *EndWords;
 extern uchar EndOff;
 extern u16 plusOlen[512];
-u16 getBitsPO(uchar *src, uchar srcOff);
-u32 getBitsPO1(uchar *src, uchar srcOff, u16 len);
-int runLengthGammaDecode_228(uchar *src, u32 bitsLen, uchar *dst);
-
-void deCodeGamma_224(bool *flag, uchar **src, uchar *srcOff,
-	uchar **dst, uchar *dstOff, u32 HBblSize);
 #endif

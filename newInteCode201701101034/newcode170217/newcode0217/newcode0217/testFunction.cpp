@@ -254,6 +254,34 @@ int gppHybirdCode(uchar *src, u32 bitsLen, uchar *dst, u16 HBblSize)
 
 //---------------------decompress-------------------------------------
 u32 deCodeLen = 1;
+u16 getBitsPO(uchar *src, uchar srcOff)
+{
+	u16 val = src[0];
+	val = (val << 8) + src[1];
+	return val << srcOff;
+}
+u32 getBitsPO1(uchar *src, uchar srcOff, u16 len)
+{
+	u32 val = *src++;
+	val = (val << 8) + *src++;
+	if (len < 16 - srcOff)
+	{
+		val = val << (16 + srcOff);
+		return val >> (32 - len);
+	}
+	val = (val << 8) + *src++;
+	if (len < 24 - srcOff)
+	{
+		val = val << (8 + srcOff);
+		return val >> (32 - len);
+	}
+	val = (val << 8) + *src++;
+	if (len < 32 - srcOff)
+	{
+		val = val << srcOff;
+		return val >> (32 - len);
+	}
+}
 int decodePlusOne(bool *flag, uchar **src, uchar *srcOff,
 	uchar **dst, uchar *dstOff, u32 HBblSize)
 {
@@ -516,7 +544,7 @@ int creatSrc(uchar *src, u32& bitsLen)
 		cout << "the parameter（src） is error!" << endl;
 		return -1;
 	}
-	string str = "11111111111111111111100000000111111111111000011111111100000000000000000000011000011110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000111";
+	string str = "111111111111111111111000000001111111111110000111111111000000000000000000000110000111100000000";
 	//string str="00000000000011001101000000011111111110000000000000000000000000000000000001100000000101000011111011111101101001010000000000011111111111111111111010000001001001111111111111111111111100000000000011111010111001001010010100011100110011";
     //cin >> str;
 	int i = 0;
@@ -537,13 +565,11 @@ int creatSrcRand(uchar *src, u32& bitsLen,u32 num)
 		cout << "the parameter（src） is error!" << endl;
 		return -1;
 	}
-	int range = 31;
-	int addRan = 1;
 	int anvRuns = 0;
 	uchar *endW = src + num;
 	uchar *startW = src+1;
 	u32 bitslen = 0;
-	u32 randNum = rand() % range + addRan;
+	u32 randNum = rand() % 31 + 1;
 	uchar *src_t = src;
 	uchar srcOff = 0;
 	bool flag = true;
@@ -558,7 +584,7 @@ int creatSrcRand(uchar *src, u32& bitsLen,u32 num)
 			srcOff = (srcOff + randNum) & 0x7;
 		}
 		flag = !flag;
-		randNum = rand() % range + addRan;
+		randNum = rand() % 31 + 1;
 		startW = src + 1;
 		startW += (bitslen+ randNum) >> 3;
 	} while (startW < endW);
@@ -583,7 +609,7 @@ string saveErorrBits(uchar *src, uchar off, u32 bitsLen)
 	return str;
 }
 
-#if 0
+#if 1
 //混合编码测试
 int main1_t(u32 num1,int x,u32 BlckSize1)
 //int main()
@@ -770,24 +796,24 @@ int runLengthGammaCode(uchar *src, u32 bitsLen, uchar *dst)
 }
 int main()
 {
-	int num = 200000;
+	int num = 10000000;
 	u32 HYbsize = 16;
 	uchar *src = new uchar[num];
 	memset(src, 0, num);
 	u32 bitsLen = 0;
 	creatSrcRand(src, bitsLen,num);
 	//creatSrc(src, bitsLen);
-	cout << "\n源串：" << bitsLen<<endl;
+	cout << "\n源串："<<endl;
 	//printBitsForArray(src, 0, bitsLen);
 	uchar *dst = new uchar[num * 2];
 	memset(dst, 0, num * 2);
 	u32 dstLen=runLengthGammaCode(src, bitsLen,dst);
-	cout << "\n压缩完成后:" << dstLen<<endl;
+	cout<<"\n压缩完成后"<<endl;
 	//printBitsForArray(dst, 0, dstLen);
 
 
-	//CreateBitMap();
-    EndWords=dst+(dstLen>>3)+(dstLen&0x7?1:1);
+	CreateBitMap();
+    EndWords=dst+(dstLen>>3)+(dstLen&0x7?1:0);
 	EndWords--;
 	EndOff=dstLen&0x7;
 	bool flag=false;
@@ -801,35 +827,24 @@ int main()
 	uchar *src1 = new uchar[num];
 	memset(src1, 0, num);
 	uchar *src1_t=src1;
-	u32 srcLen = 0;
-	srcLen=runLengthGammaDecode_228(dst, dstLen, src1);
-	/*uchar src1Off=0;
-	
+	uchar src1Off=0;
+	u32 srcLen=0;
 	while(dst_t<EndWords+1)
 	{
-		if (EndWords - dst_t < 2)
-		{
-			int xxx = 0;
-		}
-		deCodeGamma_224(&flag, &dst_t, &dstOff_t,
+		decodeGammaBlock(&flag, &dst_t, &dstOff_t,
 	 &src1_t, &src1Off, 8);
 	}
-	srcLen = (src1_t - src1) * 8 + src1Off;*/
-	cout << "\n 解压后" << srcLen<<endl;
+	srcLen = (src1_t - src1) * 8 + src1Off;
+	cout <<"\n 解压后"<< endl;
 	//printBitsForArray(src1, 0, srcLen);
-	cout << endl;
 	for (int i = 0; i < num; i++)
 	{
 		if (src[i] != src1[i])
 		{
-			cout << "i" << " " << (int)src[i] << " " << (int)src1[i] << "  error!" << endl;
-			int j = i - 4;
-			printBitsForArray(src, j * 8, srcLen - j * 8);
-			cout << endl;
-			printBitsForArray(src1, j * 8, srcLen - j * 8);
-			break;
+			cout << "i" << " " << src[i] << " " << src1[i] << "  error!" << endl;
 		}
 	}
+
 	return 0; 
 }
 #endif
@@ -897,127 +912,3 @@ int main()
 }
 #endif
 
-u16 dedeTab[512] = {
-	2304, 2048, 1792, 1792, 1536, 1536, 1536, 1536,	1280, 1280, 1280, 1280, 1280, 1280, 1280, 1280,
-	2319, 2320, 2321, 2322, 2323, 2324, 2325, 2326,	2327, 2328, 2329, 2330, 2331, 2332, 2333, 2334,
-	1799, 1799, 1799, 1799, 1800, 1800, 1800, 1800,	1801, 1801, 1801, 1801, 1802, 1802, 1802, 1802,
-	1803, 1803, 1803, 1803, 1804, 1804, 1804, 1804,	1805, 1805, 1805, 1805, 1806, 1806, 1806, 1806,
-	2088, 2088, 2089, 2089, 2090, 2090, 2091, 2091,	2092, 2092, 2093, 2093, 2094, 2094, 2095, 2095,
-	2352, 2353, 2354, 2355, 2356, 2357, 2358, 2359,	2360, 2361, 2362, 2363, 2364, 2365, 2366, 2367,
-	1285, 1285, 1285, 1285, 1285, 1285, 1285, 1285,	1285, 1285, 1285, 1285, 1285, 1285, 1285, 1285,
-	1286, 1286, 1286, 1286, 1286, 1286, 1286, 1286,	1286, 1286, 1286, 1286, 1286, 1286, 1286, 1286,
-	1058, 1058, 1058, 1058, 1058, 1058, 1058, 1058,	1058, 1058, 1058, 1058, 1058, 1058, 1058, 1058,
-	1058, 1058, 1058, 1058, 1058, 1058, 1058, 1058,	1058, 1058, 1058, 1058, 1058, 1058, 1058, 1058,
-	1059, 1059, 1059, 1059, 1059, 1059, 1059, 1059,	1059, 1059, 1059, 1059, 1059, 1059, 1059, 1059,
-	1059, 1059, 1059, 1059, 1059, 1059, 1059, 1059,	1059, 1059, 1059, 1059, 1059, 1059, 1059, 1059,
-	1316, 1316, 1316, 1316, 1316, 1316, 1316, 1316,	1316, 1316, 1316, 1316, 1316, 1316, 1316, 1316,
-	1317, 1317, 1317, 1317, 1317, 1317, 1317, 1317,	1317, 1317, 1317, 1317, 1317, 1317, 1317, 1317,
-	1318, 1318, 1318, 1318, 1318, 1318, 1318, 1318,	1318, 1318, 1318, 1318, 1318, 1318, 1318, 1318,
-	1319, 1319, 1319, 1319, 1319, 1319, 1319, 1319,	1319, 1319, 1319, 1319, 1319, 1319, 1319, 1319,
-	289, 289, 289, 289, 289, 289, 289, 289,	289, 289, 289, 289, 289, 289, 289, 289,
-	289, 289, 289, 289, 289, 289, 289, 289,	289, 289, 289, 289, 289, 289, 289, 289,
-	289, 289, 289, 289, 289, 289, 289, 289,	289, 289, 289, 289, 289, 289, 289, 289,
-	289, 289, 289, 289, 289, 289, 289, 289,	289, 289, 289, 289, 289, 289, 289, 289,
-	289, 289, 289, 289, 289, 289, 289, 289,	289, 289, 289, 289, 289, 289, 289, 289,
-	289, 289, 289, 289, 289, 289, 289, 289,	289, 289, 289, 289, 289, 289, 289, 289,
-	289, 289, 289, 289, 289, 289, 289, 289,	289, 289, 289, 289, 289, 289, 289, 289,
-	289, 289, 289, 289, 289, 289, 289, 289,	289, 289, 289, 289, 289, 289, 289, 289,
-	289, 289, 289, 289, 289, 289, 289, 289,	289, 289, 289, 289, 289, 289, 289, 289,
-	289, 289, 289, 289, 289, 289, 289, 289,	289, 289, 289, 289, 289, 289, 289, 289,
-	289, 289, 289, 289, 289, 289, 289, 289,	289, 289, 289, 289, 289, 289, 289, 289,
-	289, 289, 289, 289, 289, 289, 289, 289,	289, 289, 289, 289, 289, 289, 289, 289,
-	289, 289, 289, 289, 289, 289, 289, 289,	289, 289, 289, 289, 289, 289, 289, 289,
-	289, 289, 289, 289, 289, 289, 289, 289,	289, 289, 289, 289, 289, 289, 289, 289,
-	289, 289, 289, 289, 289, 289, 289, 289,	289, 289, 289, 289, 289, 289, 289, 289,
-	289, 289, 289, 289, 289, 289, 289, 289,	289, 289, 289, 289, 289, 289, 289, 289
-	};
-#if 0
-//新gamma解码加速生成
-void printUchar_t(uchar x)
-{
-	uchar andx = 128;
-	while (andx)
-	{
-		if (andx&x)
-			cout << "1";
-		else
-			cout << "0";
-		andx = andx >> 1;
-	}
-	cout << " ";
-}
-uchar findZeroU16_9(u16 x)
-{
-	u16 andx = 256;
-	u16 runs = 0;
-	while (andx)
-	{
-		if (andx&x)
-			break;
-		else
-			runs++;
-		andx = andx >> 1;
-	}
-	return runs;
-}
-int main()
-{
-	u16 R1, R2;
-	R1 = R2 = 0;
-	for (u32 i = 0; i < 512; i++)
-	{
-		R1 = 0;
-		R2 = findZeroU16_9(i);
-		if (R2 < 5)
-		{
-			R1 = i >> (8 - 2 * R2);
-			R1--;
-			R2 += R2 + 1;
-			if (9 - R2 >= R1)
-			{
-				u16 tmp = 1 << R1;
-				tmp += (i>>(9-R1-R2))&(0x1ff >> (9-R1));
-				R2 = R2 + R1;
-				R1 = tmp+32;
-			}
-		}
-		dedeTab[i] = R2 << 8;
-		dedeTab[i] += R1;
-		printUchar_t(i >> 8);
-		printUchar_t(i & 0xff);
-		cout << "\t" << R2 << "\t" << R1 <<"\t";
-		printUchar_t(dedeTab[i] >> 8);
-		printUchar_t(dedeTab[i] & 0xff);
-		cout << endl;
-	}
-	cout << endl;
-	
-	ofstream out;
-	out.open("dedeTab.txt", ios::out);
-	if (!out.is_open())
-	{
-		cout << "open file failed!" << endl;
-		exit(0);
-	}
-	for (u32 i = 0; i < 512; i++)
-	{
-		if (i % 8 == 0)
-		{
-			out << endl;
-		}
-		out << (int)dedeTab[i] << ",";
-		R2 = dedeTab[i] >> 8;
-		R1 = dedeTab[i] & 0xff;
-		printUchar_t(i >> 8);
-		printUchar_t(i & 0xff);
-		cout << "\t" << R2 << "\t" << R1 << "\t" << endl;
-		//printUchar_t(degaTab[i] >> 8);
-		//printUchar_t(degaTab[i] & 0xff);
-		
-	}
-	out.close();
-	return 0;
-
-}
-
-#endif
