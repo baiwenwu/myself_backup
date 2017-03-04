@@ -2,6 +2,7 @@
 #include "wzip.h"
 # include <memory.h>
 #include <math.h>
+#include<vector>
 void printBitsForArray(uchar * src, u32 index, u32 len)
 {
 	u32 words = index >> 3;
@@ -386,17 +387,17 @@ int runLengthGammaCode(uchar *src, u32 bitsLen, uchar *dst)
 	while (src_t<EndWords)
 	{
 		runs = getRuns(&src_t, &srcOff);
-		//elisGammaCode(runs, &dst, &offset);
-		if (runs == 0)break;
-		Append_g(runs, &dst, &offset);
+		elisGammaCode(runs, &dst, &offset);
+		//if (runs == 0)break;
+		//Append_g(runs, &dst, &offset);
 	}
 	uchar srcOff_t = srcOff;
 	while (srcOff_t < EndOff)
 	{
 		runs = getRuns(&src_t, &srcOff);
 		srcOff_t += runs;
-		//elisGammaCode(runs, &dst, &offset);
-		Append_g(runs, &dst, &offset);
+		elisGammaCode(runs, &dst, &offset);
+		//Append_g(runs, &dst, &offset);
 	}
 	return (dst - savedDst) * 8 + offset;
 }
@@ -637,6 +638,7 @@ int runLengthDeltaDecode(uchar *src, u32 bitsLen, uchar *dst)
 }
 
 //----------------plusOne--------------------
+vector<u32> Runs_bug;
 void writePlusOne(u32 num, uchar **buffPPtr, uchar *offset)
 {
 	num = num + 1;//plusOne
@@ -717,6 +719,7 @@ int runLengthPlusOneCode(uchar *src, u32 bitsLen, uchar *dst)
 	EndWords = src + srcNum;
 	EndOff = bitsLen & 0x7;
 
+	u32 total_run = 0;
 	//get fist bit of src
 	*dst = *src & 128;
 	bool flag;
@@ -728,7 +731,9 @@ int runLengthPlusOneCode(uchar *src, u32 bitsLen, uchar *dst)
 	while (src_t<EndWords)
 	{
 		runs = getRuns(&src_t, &srcOff);
+		total_run += runs;
 		plusOneCode(runs, &dst, &dstOffset);
+		//if (runs == 0)break;
 		//writePlusOne(runs, &dst, &dstOffset);
 	}
 	uchar srcOff_t = srcOff;
@@ -757,6 +762,8 @@ int runLengthPlusOneDecode(uchar *src, u32 bitsLen, uchar *dst)
 	bool flag = *src & 128 ? 1 : 0;
 	u32 Runs, deLen = 1;
 	u32 R1, R2;
+	u32 taltol = 0;
+	int i = 0;
 	while (deLen < bitsLen)
 	{
 		Runs = 1;
@@ -767,6 +774,10 @@ int runLengthPlusOneDecode(uchar *src, u32 bitsLen, uchar *dst)
 		R2 = (plusOlen[poVal] >> 8) & 0xff;
 		R1 = plusOlen[poVal] & 0xff;
 		if (R1 < 32){
+			if (R1 > 10)
+			{
+				int yy = 0;
+			}
 			Runs = Runs << R1;
 			src += (srcOffset + R2) >> 3;
 			srcOffset = (srcOffset + R2) & 0x7;
@@ -775,6 +786,11 @@ int runLengthPlusOneDecode(uchar *src, u32 bitsLen, uchar *dst)
 			srcOffset = (srcOffset + R1) & 0x7;
 			deLen += R1 + R2;
 			Runs--;
+			
+			if (Runs > 6000 && deLen>=387815)
+			{
+				int xxx = 0;
+			}
 		}
 		else
 		{
@@ -879,7 +895,7 @@ void bitsCopy(uchar **dst, uchar *dstOff, uchar **src, uchar *srcOff, u32 len)
 	*dstPtr = *dstPtr >> (8 - dstoff_t);
 	*dstPtr = *dstPtr << (8 - dstoff_t);
 }
-u32 *Runs = NULL;
+u32 Runs[1024];
 int gppHybirdCode(uchar *src, u32 bitsLen, uchar *dst, u16 HBblSize)
 {
 	int ret;
@@ -982,9 +998,245 @@ int gppHybirdCode(uchar *src, u32 bitsLen, uchar *dst, u16 HBblSize)
 			bitsCopy(&dst, &dstOffset, &src, &srcOffset, rbits);
 		}
 	}
-	if (srcOffset < EndOff)
+	return (dst - savedDst) * 8 + dstOffset;
+}
+
+int decodeGammaBlock(bool *flag, uchar **src, uchar *srcOff,
+	uchar **dst, uchar *dstOff, u32 HBblSize)
+{
+	uchar *dst_t = *dst;
+	uchar dstOff_t = *dstOff;
+	bool flagt = *flag;
+	uchar *src_t = *src;
+	uchar srcOff_t = *srcOff;
+	u32 deCodeLen = 0;
+	u32 R1, R2, Runs;
+	while (src_t<EndWords)
 	{
-		int xxxx = 0;
+		u16 val = *src_t;
+		val = (val << 8) | src_t[1];
+		val = val << srcOff_t;
+		u16 val_t = val >> 7;
+		R2 = degaTab[val_t] >> 8;
+		Runs = degaTab[val_t] & 0xff;
+
+		if (Runs)
+		{
+			if (flagt)
+				writeRuns_t(dst_t, dstOff_t, Runs);
+		}
+		else
+		{
+			if (R2 < 9){
+				src_t += (srcOff_t + R2) >> 3;
+				srcOff_t = (srcOff_t + R2) & 0x7;
+				R2++;
+				Runs = getBitsPO1(src_t, srcOff_t, R2);
+			}
+			else{
+				R2 = getRunsForDeg(&src_t, &srcOff_t);
+				R2++;
+				Runs = getBitsPO1(src_t, srcOff_t, R2);
+			}
+			if (flagt)
+				writeRuns_t(dst_t, dstOff_t, Runs);
+		}
+		flagt = !flagt;
+		dst_t += (dstOff_t + Runs) >> 3;
+		dstOff_t = (dstOff_t + Runs) & 0x7;
+		src_t += (srcOff_t + R2) >> 3;
+		srcOff_t = (srcOff_t + R2) & 0x7;
+		deCodeLen += Runs;
+		if (HBblSize <= deCodeLen)
+		{
+			*flag = flagt;
+			*src = src_t;
+			*srcOff = srcOff_t;
+			*dst = dst_t;
+			*dstOff = dstOff_t;
+			return 0;
+		}
+	}
+	while (srcOff_t<EndOff)
+	{
+		u16 val = *src_t;
+		val = (val << 8) | src_t[1];
+		val = val << srcOff_t;
+		u16 val_t = val >> 7;
+		R2 = degaTab[val_t] >> 8;
+		Runs = degaTab[val_t] & 0xff;
+		if (Runs){
+			if (flagt)
+				writeRuns_t(dst_t, dstOff_t, Runs);
+		}
+		dst_t += (dstOff_t + Runs) >> 3;
+		dstOff_t = (dstOff_t + Runs) & 0x7;
+		deCodeLen += Runs;
+		srcOff_t += R2;
+		flagt = !flagt;
+		if (HBblSize <= deCodeLen&&srcOff_t<EndOff)
+		{
+			*flag = flagt;
+			*src = src_t;
+			*srcOff = srcOff_t;
+			*dst = dst_t;
+			*dstOff = dstOff_t;
+			return 0;
+		}
+	}
+	*dst = dst_t;
+	*dstOff = dstOff_t;
+	*srcOff = EndOff;
+	*src = EndWords + 1;
+	return 0;
+}
+int decodePlusOne(bool *flag, uchar **src, uchar *srcOff,
+	uchar **dst, uchar *dstOff, u32 HBblSize)
+{
+	uchar *dst_t = *dst;
+	uchar dstOff_t = *dstOff;
+	bool flagt = *flag;
+	uchar *src_t = *src;
+	uchar srcOff_t = *srcOff;
+	u32 deCodeLen = 0;
+	u32 R1, R2;
+	while (src_t<EndWords)
+	{
+		u32 Runs = 1;
+		u16 val = *src_t;
+		val = (val << 8) | src_t[1];
+		val = val << srcOff_t;
+		u16 poVal = val >> 7;
+		R2 = (plusOlen[poVal] >> 8) & 0xff;
+		R1 = plusOlen[poVal] & 0xff;
+		if (R1 < 32){
+			Runs = Runs << R1;
+			src_t += (srcOff_t + R2) >> 3;
+			srcOff_t = (srcOff_t + R2) & 0x7;
+			Runs += getBitsPO1(src_t, srcOff_t, R1);
+			src_t = src_t + ((srcOff_t + R1) >> 3);
+			srcOff_t = (srcOff_t + R1) & 0x7;
+			Runs--;
+		}
+		else
+		{
+			Runs = R1 - 33;
+			src_t += (srcOff_t + R2) >> 3;
+			srcOff_t = (srcOff_t + R2) & 0x7;
+		}
+		if (flagt)
+		{
+			writeRuns_t(dst_t, dstOff_t, Runs);
+		}
+		dst_t = dst_t + ((dstOff_t + Runs) >> 3);
+		dstOff_t = (dstOff_t + Runs) & 7;
+
+		flagt = !flagt;
+		deCodeLen += Runs;
+		if (HBblSize <= deCodeLen)
+		{
+			*flag = flagt;
+			*dst = dst_t;
+			*dstOff = dstOff_t;
+			*src = src_t;
+			*srcOff = srcOff_t;
+			return 0;
+		}
+	}
+	while (srcOff_t < EndOff)
+	{
+		u16 val = *src_t;
+		val = (val << 8) | src_t[1];
+		val = val << srcOff_t;
+		u16 poVal = val >> 7;
+		R2 = (plusOlen[poVal] >> 8) & 0xff;
+		R1 = (plusOlen[poVal] & 0xff) - 33;
+		if (flagt)
+		{
+			writeRuns_t(dst_t, dstOff_t, R1);
+		}
+		dst_t = dst_t + ((dstOff_t + R1) >> 3);
+		dstOff_t = (dstOff_t + R1) & 7;
+		flagt = !flagt;
+		srcOff_t = (srcOff_t + R2) & 0x7;
+		deCodeLen += R1;
+		if (HBblSize <= deCodeLen)
+		{
+			*flag = flagt;
+			*src = src_t;
+			*srcOff = srcOff_t;
+			*dst = dst_t;
+			*dstOff = dstOff_t;
+			return 0;
+		}
+	}
+	*dst = dst_t;
+	*dstOff = dstOff_t;
+	*srcOff = EndOff;
+	*src = EndWords + 1;
+	return 0;
+}
+int deGppHybirdCode(uchar *src, u32 bitsLen, uchar *dst, u16 HBblSize)
+{//src is compressed string £¬dst is decompressed string
+	if (!src || !bitsLen || !dst)
+	{
+		return -1;
+	}
+	uchar srcOffset = 1;
+	uchar dstOffset = 0;
+
+	uchar *savedSrc = src;
+	uchar *savedDst = dst;
+	u32 srcNum = (bitsLen >> 3) + ((bitsLen & 0x7) ? 1 : 1);
+	uchar*endWS = src + srcNum;
+	EndWords = endWS - 1;
+	EndOff = bitsLen & 0x7;
+	bool flag = src[0] & 128 ? true : false;
+	u32 deCodeLen = 1;
+	int xx = 0;
+	while (src < endWS)
+	{
+		if (src == EndWords&&srcOffset == EndOff)break;
+		uchar HeadMark = getMark2(&src, &srcOffset);
+		switch (HeadMark)
+		{
+		case 0:
+			flag = false;
+			deCodeLen = (EndWords - src) * 8 + EndOff - srcOffset;
+			if (deCodeLen>bitsLen)
+			{
+				src = EndWords;
+				break;
+			}
+			if (deCodeLen > HBblSize)
+				bitsCopy(&dst, &dstOffset, &src, &srcOffset, HBblSize);
+			else
+			{
+				bitsCopy(&dst, &dstOffset, &src, &srcOffset, deCodeLen);
+				src = EndWords;
+			}
+			break;
+		case 1:
+			flag = true;
+			deCodeLen = (EndWords - src) * 8 + EndOff - srcOffset;
+			if (deCodeLen > HBblSize)
+				bitsCopy(&dst, &dstOffset, &src, &srcOffset, HBblSize);
+			else
+			{
+				bitsCopy(&dst, &dstOffset, &src, &srcOffset, deCodeLen);
+				src = EndWords;
+			}
+			break;
+		case 2://decode gamma
+			decodeGammaBlock(&flag, &src, &srcOffset, &dst, &dstOffset, HBblSize);
+			break;
+		case 3:
+			decodePlusOne(&flag, &src, &srcOffset, &dst, &dstOffset, HBblSize);
+			break;
+		default:
+			cout << "compressed string error!" << endl;
+			break;
+		}
 	}
 	return (dst - savedDst) * 8 + dstOffset;
 }

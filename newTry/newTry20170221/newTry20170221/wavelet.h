@@ -11,10 +11,9 @@ typedef struct waveletNode_t{
 	uchar*  bitBuff;
 	u32		bitLen;// measure in bit
 
-	bitArray *head;//just for hybrid code
-
-	u16 HPheadLen;
-	uchar *HPhead;
+	
+	//u16 HPheadLen;
+	//uchar *HPhead;
 
 	uchar*	zipBuff;
 	u32		zipLen;// measure in bit

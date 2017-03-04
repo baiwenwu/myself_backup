@@ -176,13 +176,6 @@ int writeZipNode(waveletTree root, ofstream &oufd)
 	}
 	u32 bitsLen = root->zipLen;
 	int nbytes;
-	if (root->head)
-	{//log201612261530//-----baiwenwu-back------------
-		u32 HeadLen = root->head->getBitsLenofArray();
-		nbytes = HeadLen / 8 + (HeadLen % 8 ? 1 : 0);
-		oufd.write((char*)&HeadLen, sizeof(u32));//write(zipfd, &root->headLen, sizeof(u32));
-		oufd.write((char*)root->head->arr, nbytes);//write(zipfd, root->head, nbytes);
-	}
 	nbytes = root->zipLen / 8 + (root->zipLen % 8 ? 1 : 0);
 	//char *ch_tmp = "baiwenwu";
 	//oufd.write((char*)ch_tmp, strlen(ch_tmp));

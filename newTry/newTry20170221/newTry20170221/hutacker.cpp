@@ -208,10 +208,6 @@ hutackerTree createHutackerTree(uchar *buff, u32 len, Stream_t *streamPtr)
 		return NULL;
 	}
 
-	if (streamPtr->nodeCode == HBRID)
-	{//log201612291103
-		ret = getBlockSizeForHybirdCode(buff, len, streamPtr->HBblockSize, streamPtr->speedlevel);
-	}
 	int nNodes = streamPtr->setSize;
 	hutaNode_t **hutackerNodesPPtr = (hutaNode_t**)streamPtr->myAlloc
 		(sizeof(hutaNode_t*)*nNodes);

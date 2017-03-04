@@ -254,7 +254,7 @@ int gppHybirdCode(uchar *src, u32 bitsLen, uchar *dst, u16 HBblSize)
 
 //---------------------decompress-------------------------------------
 u32 deCodeLen = 1;
-int decodePlusOne(bool *flag, uchar **src, uchar *srcOff,
+int decodePlusOne_t(bool *flag, uchar **src, uchar *srcOff,
 	uchar **dst, uchar *dstOff, u32 HBblSize)
 {
 	bool flagt = *flag;
@@ -333,7 +333,92 @@ int decodePlusOne(bool *flag, uchar **src, uchar *srcOff,
 	*src = EndWords + 1; 
 	return 0;
 }
- 
+int decodePlusOne(bool *flag, uchar **src, uchar *srcOff,
+	uchar **dst, uchar *dstOff, u32 HBblSize)
+{
+	uchar *dst_t = *dst;
+	uchar dstOff_t = *dstOff;
+	bool flagt = *flag;
+	uchar *src_t = *src;
+	uchar srcOff_t = *srcOff;
+	u32 deCodeLen = 0;
+	u32 R1, R2;
+	while (src_t<EndWords)
+	{
+		u32 Runs = 1;
+		u16 val = *src_t;
+		val = (val << 8) | src_t[1];
+		val = val << srcOff_t;
+		u16 poVal = val >> 7;
+		R2 = (plusOlen[poVal] >> 8) & 0xff;
+		R1 = plusOlen[poVal] & 0xff;
+		if (R1 < 32){
+			Runs = Runs << R1;
+			src_t += (srcOff_t + R2) >> 3;
+			srcOff_t = (srcOff_t + R2) & 0x7;
+			Runs += getBitsPO1(src_t, srcOff_t, R1);
+			src_t = src_t + ((srcOff_t + R1) >> 3);
+			srcOff_t = (srcOff_t + R1) & 0x7;
+			Runs--;
+		}
+		else
+		{
+			Runs = R1 - 33;
+			src_t += (srcOff_t + R2) >> 3;
+			srcOff_t = (srcOff_t + R2) & 0x7;
+		}
+		if (flagt)
+		{
+			writeRuns_t(dst_t, dstOff_t, Runs);
+		}
+		dst_t = dst_t + ((dstOff_t + Runs) >> 3);
+		dstOff_t = (dstOff_t + Runs) & 7;
+		
+		flagt = !flagt;
+		deCodeLen += Runs;
+		if (HBblSize <= deCodeLen)
+		{
+			*flag = flagt;
+			*dst = dst_t;
+			*dstOff = dstOff_t;
+			*src = src_t;
+			*srcOff = srcOff_t;
+			return 0;
+		}
+	}
+	while (srcOff_t < EndOff)
+	{
+		u16 val = *src_t;
+		val = (val << 8) | src_t[1];
+		val = val << srcOff_t;
+		u16 poVal = val >> 7;
+		R2 = (plusOlen[poVal] >> 8) & 0xff;
+		R1 = (plusOlen[poVal] & 0xff) - 33;
+		if (flagt)
+		{
+			writeRuns_t(dst_t, dstOff_t, R1);
+		}
+		dst_t = dst_t + ((dstOff_t + R1) >> 3);
+		dstOff_t = (dstOff_t + R1) & 7;
+		flagt = !flagt;
+		srcOff_t = (srcOff_t + R2) & 0x7;
+		deCodeLen += R1;
+		if (HBblSize <= deCodeLen)
+		{
+			*flag = flagt;
+			*src = src_t;
+			*srcOff = srcOff_t;
+			*dst = dst_t;
+			*dstOff = dstOff_t;
+			return 0;
+		}
+	}
+	*dst = dst_t;
+	*dstOff = dstOff_t;
+	*srcOff = EndOff;
+	*src = EndWords + 1;
+	return 0;
+}
 u32 getMapBits(uchar *src, uchar srcOff)
 {
 	u32 val = src[0];
@@ -354,7 +439,7 @@ u32 getMapBits(uchar *src, uchar srcOff)
 	}
 
 }
-int decodeGammaBlock(bool *flag, uchar **src, uchar *srcOff,
+int decodeGammaBlock_t(bool *flag, uchar **src, uchar *srcOff,
 	 uchar **dst, uchar *dstOff, u32 HBblSize)
 {//用大表的方法解码时需要多给压缩传分配2-3个字节的空间，防止出现错误
 	bool flagt = *flag;
@@ -432,6 +517,95 @@ int decodeGammaBlock(bool *flag, uchar **src, uchar *srcOff,
 		}
 		
 	}
+	*srcOff = EndOff;
+	*src = EndWords + 1;
+	return 0;
+}
+int decodeGammaBlock(bool *flag, uchar **src, uchar *srcOff,
+	uchar **dst, uchar *dstOff, u32 HBblSize)
+{
+	uchar *dst_t = *dst;
+	uchar dstOff_t = *dstOff;
+	bool flagt = *flag;
+	uchar *src_t = *src;
+	uchar srcOff_t = *srcOff;
+	u32 deCodeLen = 0;
+	u32 R1, R2, Runs;
+	while (src_t<EndWords)
+	{
+		u16 val = *src_t;
+		val = (val << 8) | src_t[1];
+		val = val << srcOff_t;
+		u16 val_t = val >> 7;
+		R2 = degaTab[val_t] >> 8;
+		Runs = degaTab[val_t] & 0xff;
+
+		if (Runs)
+		{
+			if (flagt)
+				writeRuns_t(dst_t, dstOff_t, Runs);
+		}
+		else
+		{
+			if (R2 < 9){
+				src_t += (srcOff_t + R2) >> 3;
+				srcOff_t = (srcOff_t + R2) & 0x7;
+				R2++;
+				Runs = getBitsPO1(src_t, srcOff_t, R2);
+			}
+			else{
+				R2 = getRunsForDeg(&src_t, &srcOff_t);
+				R2++;
+				Runs = getBitsPO1(src_t, srcOff_t, R2);
+			}
+			if (flagt)
+				writeRuns_t(dst_t, dstOff_t, Runs);
+		}
+		flagt = !flagt;
+		dst_t += (dstOff_t + Runs) >> 3;
+		dstOff_t = (dstOff_t + Runs) & 0x7;
+		src_t += (srcOff_t + R2) >> 3;
+		srcOff_t = (srcOff_t + R2) & 0x7;
+		deCodeLen += Runs;
+		if (HBblSize <= deCodeLen)
+		{
+			*flag = flagt;
+			*src = src_t;
+			*srcOff = srcOff_t;
+			*dst = dst_t;
+			*dstOff = dstOff_t;
+			return 0;
+		}
+	}
+	while (srcOff_t<EndOff)
+	{
+		u16 val = *src_t;
+		val = (val << 8) | src_t[1];
+		val = val << srcOff_t;
+		u16 val_t = val >> 7;
+		R2 = degaTab[val_t] >> 8;
+		Runs = degaTab[val_t] & 0xff;
+		if (Runs){
+			if (flagt)
+				writeRuns_t(dst_t, dstOff_t, Runs);
+		}
+		dst_t += (dstOff_t + Runs) >> 3;
+		dstOff_t = (dstOff_t + Runs) & 0x7;
+		deCodeLen += Runs;
+		srcOff_t += R2;
+		flagt = !flagt;
+		if (HBblSize <= deCodeLen&&srcOff_t<EndOff)
+		{
+			*flag = flagt;
+			*src = src_t;
+			*srcOff = srcOff_t;
+			*dst = dst_t;
+			*dstOff = dstOff_t;
+			return 0;
+		}
+	}
+	*dst = dst_t;
+	*dstOff = dstOff_t;
 	*srcOff = EndOff;
 	*src = EndWords + 1;
 	return 0;
@@ -516,7 +690,7 @@ int creatSrc(uchar *src, u32& bitsLen)
 		cout << "the parameter（src） is error!" << endl;
 		return -1;
 	}
-	string str = "11111111111111111111100000000111111111111000011111111100000000000000000000011000011110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000111";
+	string str = "1111111111111111111110000000011111111111100001111111110000000000000000000001100001111000000001010101011111010000000000000111";
 	//string str="00000000000011001101000000011111111110000000000000000000000000000000000001100000000101000011111011111101101001010000000000011111111111111111111010000001001001111111111111111111111100000000000011111010111001001010010100011100110011";
     //cin >> str;
 	int i = 0;
@@ -537,7 +711,7 @@ int creatSrcRand(uchar *src, u32& bitsLen,u32 num)
 		cout << "the parameter（src） is error!" << endl;
 		return -1;
 	}
-	int range = 31;
+	int range = 8;
 	int addRan = 1;
 	int anvRuns = 0;
 	uchar *endW = src + num;
@@ -563,7 +737,7 @@ int creatSrcRand(uchar *src, u32& bitsLen,u32 num)
 		startW += (bitslen+ randNum) >> 3;
 	} while (startW < endW);
 	bitsLen = bitslen;
-	cout << "\n平均 AvRuns=" << (double)bitslen / anvRuns << endl;
+	//cout << "\n平均 AvRuns=" << (double)bitslen / anvRuns << endl;
 	return 0;
 }
 string saveErorrBits(uchar *src, uchar off, u32 bitsLen)
@@ -583,7 +757,7 @@ string saveErorrBits(uchar *src, uchar off, u32 bitsLen)
 	return str;
 }
 
-#if 0
+#if 1
 //混合编码测试
 int main1_t(u32 num1,int x,u32 BlckSize1)
 //int main()
@@ -609,8 +783,8 @@ int main1_t(u32 num1,int x,u32 BlckSize1)
 		printBitsForArray(src, 0, bitsLen);
 		cout << "\n未压缩时长度：" << bitsLen << endl;
 	}
-	cout << "块大小：" << blockSize << endl;
-	cout << "\n未压缩时长度：" << bitsLen << endl;
+	//cout << "块大小：" << blockSize << endl;
+	//cout << "\n未压缩时长度：" << bitsLen << endl;
 	uchar *dst = new uchar[num * 2];
 	memset(dst, 0, num * 2);
 	Runs = new u32[BlckSize1];
@@ -621,8 +795,8 @@ int main1_t(u32 num1,int x,u32 BlckSize1)
 		printBitsForArray(dst, 0, dstLen);
 		cout << "\n压缩后长度：" << dstLen << endl;
 	}
-	cout << "\n压缩后长度：" << dstLen << endl;
-	cout << "压缩率" << double(dstLen) / double(bitsLen) << endl;
+	//cout << "\n压缩后长度：" << dstLen << endl;
+	//cout << "压缩率" << double(dstLen) / double(bitsLen) << endl;
 	uchar *src1= new uchar[num];
 	memset(src1, 0, num);
 	
@@ -632,7 +806,7 @@ int main1_t(u32 num1,int x,u32 BlckSize1)
 		printBitsForArray(src1, 0, src1Len);
 		cout << "\n解压后长度：" << src1Len << endl;
 	}
-	cout << "\n解压后长度：" << src1Len << endl;
+	//cout << "\n解压后长度：" << src1Len << endl;
 	int ret = 0;
 	for (int i = 0; i < num; i++)
 	{
@@ -678,7 +852,7 @@ int main12()
 		cout <<" "<< kj;
 		for (u32 ki = 2; ki < 1000; ki++)
 		{
-			if (kj == 40 && ki== 713)
+			if (kj == 7 && ki== 12)
 			{
 				if (main1_t(kj, 2, HB) == -1)
 					cout << "\n-------------------" << kj << "- " << ki << "--------------" << endl;
@@ -697,7 +871,7 @@ int main12()
 }
 int main()
 {
-	CreateBitMap();
+	//CreateBitMap();
 	u32 HB = 8;
 	while (HB < 9000)
 	{
@@ -705,7 +879,7 @@ int main()
 		HB = HB * 2;
 	}
 	//main12();
-	//main1_t(1000, 1);
+	//main1_t(1000, 1,8);
 	return 0;
 }
 #endif
@@ -770,7 +944,7 @@ int runLengthGammaCode(uchar *src, u32 bitsLen, uchar *dst)
 }
 int main()
 {
-	int num = 200000;
+	int num = 1000000;
 	u32 HYbsize = 16;
 	uchar *src = new uchar[num];
 	memset(src, 0, num);
@@ -802,8 +976,8 @@ int main()
 	memset(src1, 0, num);
 	uchar *src1_t=src1;
 	u32 srcLen = 0;
-	srcLen=runLengthGammaDecode_228(dst, dstLen, src1);
-	/*uchar src1Off=0;
+	//srcLen=runLengthGammaDecode_228(dst, dstLen, src1);
+	uchar src1Off=0;
 	
 	while(dst_t<EndWords+1)
 	{
@@ -811,11 +985,11 @@ int main()
 		{
 			int xxx = 0;
 		}
-		deCodeGamma_224(&flag, &dst_t, &dstOff_t,
-	 &src1_t, &src1Off, 8);
+		decodeGammaBlock(&flag, &dst_t, &dstOff_t,
+			&src1_t, &src1Off, 16);
 	}
-	srcLen = (src1_t - src1) * 8 + src1Off;*/
-	cout << "\n 解压后" << srcLen<<endl;
+	srcLen = (src1_t - src1) * 8 + src1Off;
+	cout << "\n 解压后: " << srcLen<<endl;
 	//printBitsForArray(src1, 0, srcLen);
 	cout << endl;
 	for (int i = 0; i < num; i++)

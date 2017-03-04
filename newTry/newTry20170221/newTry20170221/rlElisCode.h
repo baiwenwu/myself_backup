@@ -39,5 +39,7 @@ int runLengthPlusOneDecode(uchar *src, u32 bitsLen, uchar *dst);
 
 //int runLengthHybirdCode(waveletTree wavTree, u32 HBblockSize);
 //int hybirdDecode(waveletTree root, u32 HBblockSize);
+int gppHybirdCode(uchar *src, u32 bitsLen, uchar *dst, u16 HBblSize);
+int deGppHybirdCode(uchar *src, u32 bitsLen, uchar *dst, u16 HBblSize);
 
 #endif

@@ -1336,51 +1336,6 @@ u16 degaTab[512] = {
 	257, 257, 257, 257, 257, 257, 257, 257, 257, 257, 257, 257, 257, 257, 257, 257
 };
 
-/*uchar getRunsForDeg(uchar **src, uchar *srcOff)
-{
-	uchar *src_t = *src + 1;
-	uchar srcOff_t = *srcOff;
-	uchar Runs = 8 + acRunsTbl[*src_t];
-	if (Runs < 16)
-	{
-		*src = src_t + (Runs >> 3);
-		*srcOff = Runs & 0x7;
-		return Runs - srcOff_t;
-	}
-	if (acRunsTbl[*(++src_t)] > 128)
-	{
-		*src = src_t + 2;
-		return Runs - srcOff_t;
-	}
-	Runs += acRunsTbl[*src_t];
-	if (Runs < 24)
-	{
-		*src = src_t + (Runs >> 3);
-		*srcOff = Runs & 0x7;
-		return Runs - srcOff_t;
-	}
-	if (acRunsTbl[*(++src_t)] > 128)
-	{
-		*src = src_t + 2;
-		return Runs - srcOff_t;
-	}
-	Runs += acRunsTbl[*src_t];
-	if (Runs < 32)
-	{
-		*src = src_t + (Runs >> 3);
-		*srcOff = Runs & 0x7;
-		return Runs - srcOff_t;
-	}
-	if (acRunsTbl[*(++src_t)] > 128)
-	{
-		*src = src_t + 2;
-		return Runs - srcOff_t;
-	}
-	Runs += acRunsTbl[*src_t];
-	*src = src_t + (Runs >> 3);
-	*srcOff = Runs & 0x7;
-	return Runs - srcOff_t;//至少有32位了
-}*/
 uchar getRunsForDeg(uchar **src, uchar *srcOff)
 {
 	uchar Runs = 8;

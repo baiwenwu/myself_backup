@@ -44,7 +44,7 @@ int workState = -1;//1,2
 //    wzip [-l]
 //加速表
 
-u32 HBblockSize_t = 256;
+u32 HBblockSize_t = 8;//20170304
 u32 HB_Have = 0;
 u32 HB_sp = 1;
 fileInfo_t fileInfo;
@@ -470,10 +470,13 @@ void *childThread(int index){
 			exit(0);
 		}
 		//log201701081726
-		if (BitsCodeType == HBRID)
+		if (BitsCodeType == 3)//hybird==3;
 		{
-			getHBblockSize((char*)stream.bwt, HBblockSize_t, nread);
 			stream.HBblockSize = HBblockSize_t;
+			//getHBblockSize((char*)stream.bwt, HBblockSize_t, nread);
+			HBblockSize_t *= 2;
+			stream.HBblockSize = 256;
+			
 		}
 		//cout << bwtIndex << endl;
 		//showSAandBWT((char*)stream.inbuff, (int *)stream.suffixArray, (char *)stream.bwt, (int)stream.blkOrigSiz);
@@ -512,7 +515,9 @@ void *childThread(int index){
 		{//log201612261440
 			//cout << "\t" << "2." << index << ".1";
 			//cout << "编码是混合编码，写入混合编码块大小：" << stream.HBblockSize << endl;
-			uchar block_t = (stream.HBblockSize >> 8) & 0xff;
+			uchar block_t = 3;
+			while (stream.HBblockSize >> block_t)block_t++;
+			//uchar block_t = (stream.HBblockSize >> 8) & 0xff;
 			stream.oufd.write((char *)&block_t, sizeof(uchar));
 		}
 

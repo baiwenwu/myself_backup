@@ -111,12 +111,6 @@ balanceTree createBalanceTree(uchar *buff, u32 len, Stream_t *streamPtr)
 		NULL;
 	}
 
-	//----------baiwenwu-c--------
-	if (streamPtr->nodeCode == HBRID)
-	{//选择混合编码时,确定压缩基准块大小
-		ret = getBlockSizeForHybirdCode(buff, len, streamPtr->HBblockSize,streamPtr->speedlevel);
-	}
-
 	balNode_t *root = (balNode_t*)
 		streamPtr->myAlloc(sizeof(balNode_t));
 

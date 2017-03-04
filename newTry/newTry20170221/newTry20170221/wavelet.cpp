@@ -12,7 +12,6 @@ int initWavletNodeWithBuff(waveletNode_t *node,
 	//allocate memory
 	node->level = level;
 	node->bitLen = len;
-	node->head = NULL;
 
 	if (strlen(codeTable[buff[0]]) == level)
 	{
@@ -321,7 +320,7 @@ int compressWaveletTreeWithPlusOne(waveletTree wavTree)
 	return 0;
 
 }
-int compressWaveletTreeWithHybird(waveletTree wavTree, Stream_t &stream)
+int compressWaveletTreeWithHybird(waveletTree wavTree, u32 HBblockSize)
 {
 	if (!wavTree)
 	{
@@ -333,20 +332,21 @@ int compressWaveletTreeWithHybird(waveletTree wavTree, Stream_t &stream)
 		//leaf node
 		return 0;
 	}
-	int ret = 0;
-	//int ret = runLengthHybirdCode(wavTree, stream.HBblockSize);
-	cout << "\t--------" << wavTree->zipLen<<"------------" << endl;
+	int ret =gppHybirdCode(wavTree->bitBuff,
+		wavTree->bitLen,
+		wavTree->zipBuff, HBblockSize);
+	//cout << "\t--------" << wavTree->zipLen<<"------------" << endl;
 	if (ret<0)
 	{
 		errProcess("runLengthHybirdCode", ret);
 		return ret;
 	}
-	//wavTree->zipLen = ret;
+	wavTree->zipLen = ret;
 
 
 	if (wavTree->leftChild)
 	{
-		ret = compressWaveletTreeWithHybird(wavTree->leftChild, stream);
+		ret = compressWaveletTreeWithHybird(wavTree->leftChild, HBblockSize);
 		if (ret<0)
 		{
 			errProcess("runLengthHybirdCode", ret);
@@ -356,7 +356,7 @@ int compressWaveletTreeWithHybird(waveletTree wavTree, Stream_t &stream)
 
 	if (wavTree->righChild)
 	{
-		ret = compressWaveletTreeWithHybird(wavTree->righChild, stream);
+		ret = compressWaveletTreeWithHybird(wavTree->righChild, HBblockSize);
 		if (ret<0)
 		{
 			errProcess("runLengthHybirdCode", ret);
@@ -383,7 +383,7 @@ int compressWaveletTree(waveletTree root, Stream_t &stream)
 		ret = compressWaveletTreeWithDelta(root);
 		break;
 	case HBRID:
-		ret = compressWaveletTreeWithHybird(root, stream);
+		ret = compressWaveletTreeWithHybird(root, stream.HBblockSize);
 		break;
 	case PLUSONE:
 		ret = compressWaveletTreeWithPlusOne(root);

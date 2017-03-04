@@ -109,12 +109,7 @@ huffmanTree createHuffTree(uchar *buff, u32 len, Stream_t *streamPtr)
 		errProcess("getBlockDataInfo", ret);
 		return NULL;
 	}
-	//----------baiwenwu-c--------
-	if (streamPtr->nodeCode == HBRID)//
-	{
-		ret = getBlockSizeForHybirdCode(buff, len, streamPtr->HBblockSize,streamPtr->speedlevel);
-	}
-
+	
 	int	nNodes = streamPtr->setSize;
 	int maxnNodes = streamPtr->setSize * 2 - 1;
 	huffNode_t **huffNodesPPtr = (huffNode_t**)

@@ -143,8 +143,6 @@ typedef struct Stream_t{
 	//the code pattern of the tree nodes
 	NodeCodeType nodeCode;
 
-	//-----baiwenwu-c--
-	u32 GHBblockSize;//块大小的确认
 	//statics info output level
 	char verboseLevel;
 
@@ -158,7 +156,6 @@ typedef struct Stream_t{
 	//base block size just for hybride coding 
 	u32 HBblockSize;
 	u32 HBlevel;
-	u32 speedlevel;
 
 	//for huffman , hu-tacker ,balance ,compute code tabel
 	u32 setSize;
