@@ -97,7 +97,8 @@ int main()
 				cout << "PLUSONE Ñ¹Ëõ£º" << endl;
 				break;*/
 			case 4:
-				BitsCodeType = 3;
+ 			BitsCodeType = 3;
+				i = 3;
 				cout << "»ìºÏ±àÂë Ñ¹Ëõ£º" << endl;
 				break;
 			default:

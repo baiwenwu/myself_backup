@@ -365,7 +365,7 @@ int paraseHBblockSize(Stream_t *streamPtr)
 	streamPtr->HBblockSize = 1;
 	streamPtr->HBblockSize = streamPtr->HBblockSize << (nblocks - 1);
 	cout << "****************************" << streamPtr->HBblockSize << "****************************" << endl;
-	return 0;
+ 	return 0;
 }
 int paraseBlkCharSetMap(Stream_t *streamPtr)
 {

@@ -422,6 +422,13 @@ void *childThread(int index){
 
 	u32 nread = 0;
 	int blkCount = 0;
+	if (BitsCodeType == 3)//hybird==3;
+	{
+		stream.HBblockSize = HBblockSize_t;
+		//getHBblockSize((char*)stream.bwt, HBblockSize_t, nread);
+		stream.HBblockSize = HBblockSize_t;
+		HBblockSize_t *= 2;
+	}
 	// 求SA数组和BWT变换后的L串
 	while (blkCount < threadInfos[index].nblocks)
 	{
@@ -470,14 +477,7 @@ void *childThread(int index){
 			exit(0);
 		}
 		//log201701081726
-		if (BitsCodeType == 3)//hybird==3;
-		{
-			stream.HBblockSize = HBblockSize_t;
-			//getHBblockSize((char*)stream.bwt, HBblockSize_t, nread);
-			HBblockSize_t *= 2;
-			stream.HBblockSize = 256;
-			
-		}
+		
 		//cout << bwtIndex << endl;
 		//showSAandBWT((char*)stream.inbuff, (int *)stream.suffixArray, (char *)stream.bwt, (int)stream.blkOrigSiz);
 
